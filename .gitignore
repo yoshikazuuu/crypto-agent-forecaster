@@ -12,3 +12,12 @@ wheels/
 .cursor
 
 results/
+
+# Validation results
+validation_results/
+
+# Logs
+logs/
+
+# Configuration
+vps_config.ini
