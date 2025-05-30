@@ -170,14 +170,50 @@ class CryptoValidator:
         """Backtest a single coin"""
         self.logger.info(f"Backtesting {coin}")
         
-        # Get historical data
+        # Get historical data using the correct CoinGeckoTool interface
         try:
-            historical_data = self.coingecko.get_historical_data(coin, days_back + 1)
-            if not historical_data:
-                self.logger.error(f"No historical data for {coin}")
+            # Use the _run method with proper query format
+            query = f"{coin} ohlcv {days_back + 1} days"
+            historical_data_json = self.coingecko._run(query=query)
+            
+            if not historical_data_json:
+                self.logger.error(f"No historical data response for {coin}")
                 return []
             
-            df = pd.DataFrame(historical_data)
+            # Parse the JSON response
+            import json
+            historical_data_dict = json.loads(historical_data_json)
+            
+            # Check for errors in the response
+            if "error" in historical_data_dict:
+                self.logger.error(f"Error in historical data for {coin}: {historical_data_dict['error']}")
+                return []
+            
+            # Extract OHLCV data from the response
+            ohlcv_data = None
+            if 'ohlcv_data' in historical_data_dict:
+                ohlcv_data = historical_data_dict['ohlcv_data']
+            elif isinstance(historical_data_dict, list):
+                ohlcv_data = historical_data_dict
+            else:
+                self.logger.error(f"Cannot find ohlcv_data in response for {coin}")
+                return []
+            
+            if not ohlcv_data:
+                self.logger.error(f"Empty OHLCV data for {coin}")
+                return []
+            
+            # Convert to DataFrame
+            df = pd.DataFrame(ohlcv_data)
+            
+            # Ensure we have the required columns
+            required_columns = ['timestamp', 'open', 'high', 'low', 'close', 'volume']
+            missing_columns = [col for col in required_columns if col not in df.columns]
+            if missing_columns:
+                self.logger.error(f"Missing required columns for {coin}: {missing_columns}")
+                return []
+            
+            # Convert timestamp to datetime
             df['timestamp'] = pd.to_datetime(df['timestamp'])
             df = df.sort_values('timestamp')
             
@@ -187,69 +223,71 @@ class CryptoValidator:
         
         results = []
         
-        # Test every 6 hours for the period
-        for i in range(0, len(df) - 4, 4):  # 4 data points = ~1 day
+        # Test every 6 hours for the period (simplified backtesting)
+        step_size = max(1, len(df) // (days_back * 4))  # Aim for ~4 forecasts per day
+        
+        for i in range(0, len(df) - step_size, step_size):
             try:
                 forecast_time = df.iloc[i]['timestamp']
-                forecast_price = df.iloc[i]['price']
+                forecast_price = df.iloc[i]['close']  # Use close price as the forecast baseline
                 
-                # Look ahead 1 hour (assuming hourly data)
-                if i + 1 < len(df):
-                    actual_price = df.iloc[i + 1]['price']
+                # Look ahead for actual price (simulate 1-hour forecast)
+                if i + step_size < len(df):
+                    actual_price = df.iloc[i + step_size]['close']
                     
-                    # Simulate forecast (this would normally call the forecasting tool)
-                    forecast_direction = self._simulate_forecast(df.iloc[max(0, i-24):i+1])
+                    # Simulate forecast using simple technical analysis
+                    forecast_direction = self._simulate_forecast_direction(df.iloc[:i+1])
+                    
+                    # Calculate accuracy
+                    price_change = actual_price - forecast_price
+                    was_correct = (
+                        (forecast_direction == ForecastDirection.UP and price_change > 0) or
+                        (forecast_direction == ForecastDirection.DOWN and price_change < 0) or
+                        (forecast_direction == ForecastDirection.NEUTRAL and abs(price_change/forecast_price) < 0.01)
+                    )
                     
                     result = ForecastResult(
                         crypto=coin,
                         timestamp=forecast_time,
                         forecast_direction=forecast_direction,
-                        confidence=ConfidenceLevel.MEDIUM,  # Default for simulation
-                        predicted_price=None,
+                        confidence=ConfidenceLevel.MEDIUM,
+                        predicted_price=None,  # Not predicting exact price in this simulation
                         actual_price=actual_price,
                         price_at_forecast=forecast_price,
-                        time_horizon_hours=1
+                        time_horizon_hours=1,  # Simplified to 1-hour forecasts
+                        accuracy=was_correct,
+                        return_pct=(price_change / forecast_price) * 100 if forecast_price > 0 else 0
                     )
-                    
-                    # Calculate accuracy and return
-                    result.return_pct = ((actual_price - forecast_price) / forecast_price) * 100
-                    
-                    if forecast_direction == ForecastDirection.UP:
-                        result.accuracy = actual_price > forecast_price
-                    elif forecast_direction == ForecastDirection.DOWN:
-                        result.accuracy = actual_price < forecast_price
-                    else:  # NEUTRAL
-                        # Consider neutral correct if price change < 1%
-                        result.accuracy = abs(result.return_pct) < 1.0
                     
                     results.append(result)
                     
             except Exception as e:
-                self.logger.error(f"Error processing data point for {coin}: {e}")
+                self.logger.error(f"Error processing forecast for {coin} at index {i}: {e}")
                 continue
         
-        self.logger.info(f"Backtesting {coin} complete: {len(results)} predictions")
+        self.logger.info(f"Generated {len(results)} backtest forecasts for {coin}")
         return results
     
-    def _simulate_forecast(self, historical_data: pd.DataFrame) -> ForecastDirection:
-        """
-        Simulate forecast using simple technical analysis
-        This is a placeholder - in real backtesting, we'd use the actual forecasting tool
-        """
-        if len(historical_data) < 5:
+    def _simulate_forecast_direction(self, historical_df: pd.DataFrame) -> ForecastDirection:
+        """Simulate forecast direction using simple technical analysis"""
+        if len(historical_df) < 5:
             return ForecastDirection.NEUTRAL
         
-        # Simple moving average crossover strategy
-        short_ma = historical_data['price'].tail(5).mean()
-        long_ma = historical_data['price'].tail(10).mean() if len(historical_data) >= 10 else short_ma
-        
-        current_price = historical_data['price'].iloc[-1]
-        
-        if short_ma > long_ma and current_price > short_ma:
-            return ForecastDirection.UP
-        elif short_ma < long_ma and current_price < short_ma:
-            return ForecastDirection.DOWN
-        else:
+        try:
+            # Simple moving average strategy
+            recent_prices = historical_df['close'].tail(5)
+            avg_price = recent_prices.mean()
+            current_price = recent_prices.iloc[-1]
+            
+            # Simple momentum check
+            if current_price > avg_price * 1.01:  # 1% above average
+                return ForecastDirection.UP
+            elif current_price < avg_price * 0.99:  # 1% below average
+                return ForecastDirection.DOWN
+            else:
+                return ForecastDirection.NEUTRAL
+                
+        except Exception:
             return ForecastDirection.NEUTRAL
     
     async def _make_forecast(self, coin: str, horizon: str) -> Optional[ForecastResult]:
@@ -278,7 +316,7 @@ class CryptoValidator:
             
             if forecast_data:
                 # Get current price
-                current_price = self.coingecko.get_current_price(coin)
+                current_price = self._get_current_price(coin)
                 
                 return ForecastResult(
                     crypto=coin,
@@ -328,7 +366,7 @@ class CryptoValidator:
         
         try:
             # Get current price
-            actual_price = self.coingecko.get_current_price(forecast.crypto)
+            actual_price = self._get_current_price(forecast.crypto)
             forecast.actual_price = actual_price
             
             # Calculate return
@@ -485,6 +523,36 @@ class CryptoValidator:
             "average_winning_return": metrics.average_winning_return,
             "average_losing_return": metrics.average_losing_return
         }
+
+    def _get_current_price(self, coin: str) -> float:
+        """Get current price for a coin using the CoinGeckoTool interface"""
+        try:
+            query = f"{coin} current price"
+            price_data_json = self.coingecko._run(query=query)
+            
+            if not price_data_json:
+                self.logger.error(f"No price data response for {coin}")
+                return 0.0
+            
+            # Parse the JSON response
+            import json
+            price_data = json.loads(price_data_json)
+            
+            # Check for errors
+            if "error" in price_data:
+                self.logger.error(f"Error getting price for {coin}: {price_data['error']}")
+                return 0.0
+            
+            # Extract current price
+            current_price = price_data.get('current_price', 0.0)
+            if current_price == 0.0:
+                self.logger.warning(f"Zero price returned for {coin}")
+            
+            return current_price
+            
+        except Exception as e:
+            self.logger.error(f"Error getting current price for {coin}: {e}")
+            return 0.0
 
 
 if __name__ == "__main__":

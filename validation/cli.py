@@ -76,8 +76,11 @@ def live(
                 
                 progress.update(task, description="✅ Live validation completed!")
                 
+                # Convert ValidationMetrics to dictionary format for display
+                metrics_dict = validator._metrics_to_dict(metrics) if metrics else {}
+                
                 # Display results
-                _display_metrics(metrics)
+                _display_metrics(metrics_dict)
                 
             except KeyboardInterrupt:
                 progress.update(task, description="⏹️ Stopped by user")
@@ -135,8 +138,11 @@ def backtest(
                 
                 progress.update(task, description="✅ Backtesting completed!")
                 
+                # Convert ValidationMetrics to dictionary format for display
+                metrics_dict = validator._metrics_to_dict(metrics) if metrics else {}
+                
                 # Display results
-                _display_metrics(metrics)
+                _display_metrics(metrics_dict)
                 
             except Exception as e:
                 progress.update(task, description="❌ Error occurred")
@@ -423,8 +429,11 @@ def full_test():
                 
                 progress.update(task, description="✅ Comprehensive validation completed!")
                 
+                # Convert ValidationMetrics to dictionary format for display
+                metrics_dict = validator._metrics_to_dict(metrics) if metrics else {}
+                
                 # Display results
-                _display_metrics(metrics)
+                _display_metrics(metrics_dict)
                 
                 # Show coin-specific summary
                 console.print("\n🎯 [bold]Test Summary:[/bold]")
@@ -467,7 +476,9 @@ def quick_test():
             )
             
             console.print("✅ Quick test completed!")
-            _display_metrics(metrics)
+            # Convert ValidationMetrics to dictionary format for display
+            metrics_dict = validator._metrics_to_dict(metrics) if metrics else {}
+            _display_metrics(metrics_dict)
             
         except Exception as e:
             console.print(f"❌ Quick test failed: {e}", style="red")
@@ -523,8 +534,11 @@ def full_backtest(
                 
                 progress.update(task, description="✅ Comprehensive backtesting completed!")
                 
+                # Convert ValidationMetrics to dictionary format for display
+                metrics_dict = validator._metrics_to_dict(metrics) if metrics else {}
+                
                 # Display results
-                _display_metrics(metrics)
+                _display_metrics(metrics_dict)
                 
                 # Show test summary
                 console.print("\n🎯 [bold]Backtest Summary:[/bold]")
