@@ -377,6 +377,73 @@ def _show_status_summary(analytics: ValidationAnalytics):
 
 
 @app.command()
+def full_test():
+    """
+    🔥 Run comprehensive 6-hour validation test with all supported cryptocurrencies.
+    
+    Tests Bitcoin, Ethereum, Solana, Cardano, Polygon, Chainlink, Avalanche, 
+    Polkadot, Uniswap, and Litecoin for 6 hours with 1-hour intervals.
+    """
+    # All supported coins from the validator
+    all_coins = [
+        "bitcoin", "ethereum", "solana", "cardano", "polygon",
+        "chainlink", "avalanche-2", "polkadot", "uniswap", "litecoin"
+    ]
+    
+    console.print(Panel.fit(
+        f"🔥 Comprehensive 6-Hour Multi-Coin Validation\n"
+        f"Duration: 6 hours\n"
+        f"Interval: 1 hour\n"
+        f"Testing {len(all_coins)} cryptocurrencies:\n"
+        f"• {', '.join(all_coins[:5])}\n"
+        f"• {', '.join(all_coins[5:])}",
+        title="Full Validation Test",
+        style="bold magenta"
+    ))
+    
+    console.print("\n⚠️  [yellow]This test will take 6 hours to complete![/yellow]")
+    console.print("💡 [blue]Tip: Use 'backtest' for instant results with historical data[/blue]\n")
+    
+    async def run_full_test():
+        validator = CryptoValidator()
+        
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            console=console
+        ) as progress:
+            task = progress.add_task("Running comprehensive validation...", total=None)
+            
+            try:
+                metrics = await validator.run_live_validation(
+                    duration_hours=6,
+                    interval_hours=1,
+                    coins=all_coins
+                )
+                
+                progress.update(task, description="✅ Comprehensive validation completed!")
+                
+                # Display results
+                _display_metrics(metrics)
+                
+                # Show coin-specific summary
+                console.print("\n🎯 [bold]Test Summary:[/bold]")
+                console.print(f"• Total coins tested: {len(all_coins)}")
+                console.print(f"• Test duration: 6 hours")
+                console.print(f"• Forecasts per coin: 6 (every hour)")
+                console.print(f"• Total forecasts made: {len(all_coins) * 6}")
+                
+            except KeyboardInterrupt:
+                progress.update(task, description="⏹️ Stopped by user")
+                console.print("Comprehensive validation stopped by user", style="yellow")
+            except Exception as e:
+                progress.update(task, description="❌ Error occurred")
+                console.print(f"Error: {e}", style="red")
+    
+    asyncio.run(run_full_test())
+
+
+@app.command()
 def quick_test():
     """
     ⚡ Run a quick validation test with Bitcoin.
@@ -406,6 +473,70 @@ def quick_test():
             console.print(f"❌ Quick test failed: {e}", style="red")
     
     asyncio.run(run_quick_test())
+
+
+@app.command()
+def full_backtest(
+    days: int = typer.Option(30, "--days", "-d", help="Days of historical data")
+):
+    """
+    📊 Run comprehensive backtesting with all supported cryptocurrencies.
+    
+    Tests Bitcoin, Ethereum, Solana, Cardano, Polygon, Chainlink, Avalanche, 
+    Polkadot, Uniswap, and Litecoin using historical data. Results are instant!
+    
+    Examples:
+        crypto-validator full-backtest --days 30
+        crypto-validator full-backtest -d 7
+    """
+    # All supported coins from the validator
+    all_coins = [
+        "bitcoin", "ethereum", "solana", "cardano", "polygon",
+        "chainlink", "avalanche-2", "polkadot", "uniswap", "litecoin"
+    ]
+    
+    console.print(Panel.fit(
+        f"📊 Comprehensive Multi-Coin Backtesting\n"
+        f"Historical days: {days}\n"
+        f"Testing {len(all_coins)} cryptocurrencies:\n"
+        f"• {', '.join(all_coins[:5])}\n"
+        f"• {', '.join(all_coins[5:])}",
+        title="Full Backtest Validation",
+        style="bold cyan"
+    ))
+    
+    async def run_full_backtest():
+        validator = CryptoValidator()
+        
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            console=console
+        ) as progress:
+            task = progress.add_task("Running comprehensive backtesting...", total=None)
+            
+            try:
+                metrics = await validator.run_backtesting_validation(
+                    days_back=days,
+                    coins=all_coins
+                )
+                
+                progress.update(task, description="✅ Comprehensive backtesting completed!")
+                
+                # Display results
+                _display_metrics(metrics)
+                
+                # Show test summary
+                console.print("\n🎯 [bold]Backtest Summary:[/bold]")
+                console.print(f"• Total coins tested: {len(all_coins)}")
+                console.print(f"• Historical days: {days}")
+                console.print(f"• Estimated forecasts: {len(all_coins) * (days // 2)} (approx)")
+                
+            except Exception as e:
+                progress.update(task, description="❌ Error occurred")
+                console.print(f"Error: {e}", style="red")
+    
+    asyncio.run(run_full_backtest())
 
 
 def main():
