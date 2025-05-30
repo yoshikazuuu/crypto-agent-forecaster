@@ -364,12 +364,21 @@ def _create_technical_chart(df: pd.DataFrame, indicators: Dict[str, Any], crypto
         
         # Debug: Print original data structure
         print(f"📊 Chart data structure - Rows: {len(df)}, Columns: {list(df.columns)}")
+        if 'timestamp' in df.columns:
+            print(f"📊 Timestamp sample: {df['timestamp'].iloc[0] if len(df) > 0 else 'No data'}")
+            print(f"📊 Timestamp dtype: {df['timestamp'].dtype}")
         
         # Prepare data for mplfinance with better validation
         if 'timestamp' in df.columns:
             # Handle both string and numeric timestamps
             if df['timestamp'].dtype == 'object':
-                df['datetime'] = pd.to_datetime(df['timestamp'])
+                # Try parsing as ISO format first (e.g., "2025-05-17T16:00:00")
+                try:
+                    df['datetime'] = pd.to_datetime(df['timestamp'])
+                except Exception as e:
+                    print(f"⚠️ Error parsing string timestamps: {e}")
+                    # Fallback: try to parse as various other formats
+                    df['datetime'] = pd.to_datetime(df['timestamp'], errors='coerce')
             else:
                 # Handle millisecond vs second timestamps correctly
                 if df['timestamp'].max() > 1e10:
@@ -382,44 +391,52 @@ def _create_technical_chart(df: pd.DataFrame, indicators: Dict[str, Any], crypto
         # Ensure data is sorted chronologically
         df = df.sort_values('datetime')
         
+        # Validate that we have valid datetime data after parsing
+        if df['datetime'].isna().any():
+            print(f"⚠️ Found {df['datetime'].isna().sum()} invalid timestamps, removing...")
+            df = df.dropna(subset=['datetime'])
+            if len(df) < 2:
+                print("❌ Insufficient valid data after timestamp validation")
+                return _create_fallback_line_chart(df, indicators, crypto_name)
+        
+        # Set datetime as index for mplfinance - this is critical for proper candlestick rendering
+        chart_df = df.set_index('datetime').copy()
+        
         # Validate OHLC data integrity
         required_cols = ['open', 'high', 'low', 'close']
-        missing_cols = [col for col in required_cols if col not in df.columns]
+        missing_cols = [col for col in required_cols if col not in chart_df.columns]
         if missing_cols:
             print(f"❌ Missing required OHLC columns: {missing_cols}")
             return _create_fallback_line_chart(df, indicators, crypto_name)
         
         # Check for invalid OHLC relationships
         invalid_data = (
-            (df['high'] < df['low']) |
-            (df['high'] < df['open']) |
-            (df['high'] < df['close']) |
-            (df['low'] > df['open']) |
-            (df['low'] > df['close'])
+            (chart_df['high'] < chart_df['low']) |
+            (chart_df['high'] < chart_df['open']) |
+            (chart_df['high'] < chart_df['close']) |
+            (chart_df['low'] > chart_df['open']) |
+            (chart_df['low'] > chart_df['close'])
         )
         if invalid_data.any():
             print(f"⚠️ Found {invalid_data.sum()} invalid OHLC relationships, fixing...")
             # Fix invalid relationships
-            df.loc[invalid_data, 'high'] = df.loc[invalid_data, ['open', 'close']].max(axis=1)
-            df.loc[invalid_data, 'low'] = df.loc[invalid_data, ['open', 'close']].min(axis=1)
+            chart_df.loc[invalid_data, 'high'] = chart_df.loc[invalid_data, ['open', 'close']].max(axis=1)
+            chart_df.loc[invalid_data, 'low'] = chart_df.loc[invalid_data, ['open', 'close']].min(axis=1)
         
         # Check for NaN values in OHLC data
-        ohlc_nan_count = df[required_cols].isnull().sum().sum()
+        ohlc_nan_count = chart_df[required_cols].isnull().sum().sum()
         if ohlc_nan_count > 0:
             print(f"⚠️ Found {ohlc_nan_count} NaN values in OHLC data, forward filling...")
-            df[required_cols] = df[required_cols].fillna(method='ffill')
+            chart_df[required_cols] = chart_df[required_cols].fillna(method='ffill')
         
         # Ensure all OHLC values are positive
-        negative_values = (df[required_cols] <= 0).any(axis=1)
+        negative_values = (chart_df[required_cols] <= 0).any(axis=1)
         if negative_values.any():
             print(f"⚠️ Found {negative_values.sum()} rows with non-positive values, fixing...")
-            df = df[~negative_values]
-            if len(df) < 2:
+            chart_df = chart_df[~negative_values]
+            if len(chart_df) < 2:
                 print("❌ Insufficient valid data after cleaning")
                 return _create_fallback_line_chart(df, indicators, crypto_name)
-        
-        # Set datetime as index for mplfinance - this is critical for proper candlestick rendering
-        chart_df = df.set_index('datetime').copy()
         
         # Ensure proper data types for mplfinance
         for col in required_cols:
@@ -772,7 +789,21 @@ def _create_fallback_line_chart(df: pd.DataFrame, indicators: Dict[str, Any], cr
             ax.grid(True, color='#363A45', linestyle='-', linewidth=0.5, alpha=0.3)
         
         if 'timestamp' in df.columns:
-            df['datetime'] = pd.to_datetime(df['timestamp'], unit='s' if df['timestamp'].dtype in ['int64', 'float64'] else None)
+            # Handle both string and numeric timestamps properly
+            if df['timestamp'].dtype == 'object':
+                # Try parsing as ISO format first (e.g., "2025-05-17T16:00:00")
+                try:
+                    df['datetime'] = pd.to_datetime(df['timestamp'])
+                except Exception as e:
+                    print(f"⚠️ Error parsing string timestamps in fallback: {e}")
+                    # Fallback: try to parse as various other formats
+                    df['datetime'] = pd.to_datetime(df['timestamp'], errors='coerce')
+            else:
+                # Handle numeric timestamps
+                if df['timestamp'].max() > 1e10:
+                    df['datetime'] = pd.to_datetime(df['timestamp'], unit='ms')
+                else:
+                    df['datetime'] = pd.to_datetime(df['timestamp'], unit='s')
         else:
             df['datetime'] = pd.to_datetime(df.index)
         
@@ -1283,7 +1314,13 @@ def _create_enhanced_technical_chart(df: pd.DataFrame, indicators: Dict[str, Any
         if 'timestamp' in df.columns:
             # Handle both string and numeric timestamps
             if df['timestamp'].dtype == 'object':
-                df['datetime'] = pd.to_datetime(df['timestamp'])
+                # Try parsing as ISO format first (e.g., "2025-05-17T16:00:00")
+                try:
+                    df['datetime'] = pd.to_datetime(df['timestamp'])
+                except Exception as e:
+                    print(f"⚠️ Error parsing string timestamps: {e}")
+                    # Fallback: try to parse as various other formats
+                    df['datetime'] = pd.to_datetime(df['timestamp'], errors='coerce')
             else:
                 # Handle millisecond vs second timestamps correctly
                 if df['timestamp'].max() > 1e10:
@@ -1296,12 +1333,79 @@ def _create_enhanced_technical_chart(df: pd.DataFrame, indicators: Dict[str, Any
         # Ensure data is sorted chronologically
         df = df.sort_values('datetime')
         
-        # Set datetime as index for mplfinance
-        chart_df = df.set_index('datetime')
+        # Validate that we have valid datetime data after parsing
+        if df['datetime'].isna().any():
+            print(f"⚠️ Found {df['datetime'].isna().sum()} invalid timestamps, removing...")
+            df = df.dropna(subset=['datetime'])
+            if len(df) < 2:
+                print("❌ Insufficient valid data after timestamp validation")
+                return _create_fallback_line_chart(df, indicators, crypto_name)
+        
+        # Set datetime as index for mplfinance - this is critical for proper candlestick rendering
+        chart_df = df.set_index('datetime').copy()
+        
+        # Validate OHLC data integrity
+        required_cols = ['open', 'high', 'low', 'close']
+        missing_cols = [col for col in required_cols if col not in chart_df.columns]
+        if missing_cols:
+            print(f"❌ Missing required OHLC columns: {missing_cols}")
+            return _create_fallback_line_chart(df, indicators, crypto_name)
+        
+        # Check for invalid OHLC relationships
+        invalid_data = (
+            (chart_df['high'] < chart_df['low']) |
+            (chart_df['high'] < chart_df['open']) |
+            (chart_df['high'] < chart_df['close']) |
+            (chart_df['low'] > chart_df['open']) |
+            (chart_df['low'] > chart_df['close'])
+        )
+        if invalid_data.any():
+            print(f"⚠️ Found {invalid_data.sum()} invalid OHLC relationships, fixing...")
+            # Fix invalid relationships
+            chart_df.loc[invalid_data, 'high'] = chart_df.loc[invalid_data, ['open', 'close']].max(axis=1)
+            chart_df.loc[invalid_data, 'low'] = chart_df.loc[invalid_data, ['open', 'close']].min(axis=1)
+        
+        # Check for NaN values in OHLC data
+        ohlc_nan_count = chart_df[required_cols].isnull().sum().sum()
+        if ohlc_nan_count > 0:
+            print(f"⚠️ Found {ohlc_nan_count} NaN values in OHLC data, forward filling...")
+            chart_df[required_cols] = chart_df[required_cols].fillna(method='ffill')
+        
+        # Ensure all OHLC values are positive
+        negative_values = (chart_df[required_cols] <= 0).any(axis=1)
+        if negative_values.any():
+            print(f"⚠️ Found {negative_values.sum()} rows with non-positive values, fixing...")
+            chart_df = chart_df[~negative_values]
+            if len(chart_df) < 2:
+                print("❌ Insufficient valid data after cleaning")
+                return _create_fallback_line_chart(df, indicators, crypto_name)
+        
+        # Ensure proper data types for mplfinance
+        for col in required_cols:
+            chart_df[col] = pd.to_numeric(chart_df[col], errors='coerce')
+        
+        # Remove any remaining NaN values
+        chart_df = chart_df.dropna(subset=required_cols)
+        
+        if len(chart_df) < 2:
+            print("❌ Insufficient valid OHLC data after cleaning")
+            return _create_fallback_line_chart(df, indicators, crypto_name)
+        
+        # Debug: Validate final chart data
+        print(f"✅ Chart data validated - {len(chart_df)} candles, OHLC range: "
+              f"${chart_df['low'].min():.2f} - ${chart_df['high'].max():.2f}")
+        
+        # Check if all candles are identical (would appear as dots)
+        price_variance = chart_df[required_cols].var().sum()
+        if price_variance < 1e-10:
+            print("⚠️ Very low price variance detected - candles may appear as dots")
+            # Add small artificial variance to prevent dot appearance
+            chart_df['high'] = chart_df['high'] * 1.0001
+            chart_df['low'] = chart_df['low'] * 0.9999
         
         # Calculate current price and price change
-        current_price = df['close'].iloc[-1]
-        price_change = ((current_price - df['close'].iloc[0]) / df['close'].iloc[0] * 100) if len(df) > 1 else 0
+        current_price = chart_df['close'].iloc[-1]
+        price_change = ((current_price - chart_df['close'].iloc[0]) / chart_df['close'].iloc[0] * 100) if len(chart_df) > 1 else 0
         
         # Get date range
         actual_start_date = df['datetime'].min().strftime('%Y-%m-%d')
@@ -1635,9 +1739,9 @@ class TechnicalAnalysisTool:
         """
         self.ta_config = Config.TA_INDICATORS
     
-    def _run(self, crypto_name: str, days: int = 30) -> str:
-        """Legacy interface for the tool."""
-        return technical_analysis_tool.func(crypto_name, days)
+    def _run(self, crypto_name: str, forecast_horizon: str = "24 hours", days: Optional[int] = None) -> str:
+        """Legacy interface for the tool with proper parameter handling."""
+        return technical_analysis_tool.func(crypto_name, forecast_horizon, days)
 
 
 def create_technical_analysis_tool():
