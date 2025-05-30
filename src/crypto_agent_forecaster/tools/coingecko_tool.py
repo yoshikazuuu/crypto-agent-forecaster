@@ -20,6 +20,7 @@ def coingecko_tool(query: str) -> str:
     
     Args:
         query: Query for cryptocurrency data (e.g., 'bitcoin current price', 'ethereum ohlcv 30 days')
+               Can include horizon information for optimal data fetching (e.g., 'bitcoin ohlcv 24 hours horizon')
     
     Returns:
         JSON string containing the requested cryptocurrency data
@@ -69,6 +70,41 @@ def coingecko_tool(query: str) -> str:
             return 365
         else:
             return 7  # Default to 7 days
+    
+    def _get_optimal_days_for_horizon(horizon: str) -> int:
+        """Get optimal historical data days based on forecast horizon."""
+        horizon_lower = horizon.lower()
+        
+        # Extract numeric value and time unit
+        if "hour" in horizon_lower:
+            if "1 hour" in horizon_lower or "1hr" in horizon_lower:
+                return 3  # 3 days for 1 hour forecast
+            elif "4 hour" in horizon_lower or "4hr" in horizon_lower:
+                return 7  # 1 week for 4 hour forecast
+            elif "12 hour" in horizon_lower or "12hr" in horizon_lower:
+                return 14  # 2 weeks for 12 hour forecast
+            else:
+                return 7  # Default 1 week for hour-based forecasts
+        elif "day" in horizon_lower:
+            if "1 day" in horizon_lower:
+                return 30  # 1 month for 1 day forecast
+            elif "3 day" in horizon_lower:
+                return 60  # 2 months for 3 day forecast
+            elif "7 day" in horizon_lower:
+                return 90  # 3 months for 1 week forecast
+            else:
+                return 30  # Default 1 month for day-based forecasts
+        elif "week" in horizon_lower:
+            if "1 week" in horizon_lower:
+                return 90  # 3 months for 1 week forecast
+            elif "2 week" in horizon_lower:
+                return 120  # 4 months for 2 week forecast
+            else:
+                return 90  # Default 3 months for week-based forecasts
+        elif "month" in horizon_lower:
+            return 365  # 1 year for month-based forecasts
+        else:
+            return 30  # Default to 1 month
     
     def _get_current_price(crypto_id: str, session: requests.Session) -> Dict[str, Any]:
         """Get current price and basic market data."""
@@ -206,11 +242,23 @@ def coingecko_tool(query: str) -> str:
         session = _get_session()
         crypto_id = _extract_crypto_id(query)
         
+        # Check if horizon is specified for optimal data fetching
+        if "horizon" in query.lower():
+            # Extract horizon information
+            import re
+            horizon_match = re.search(r'(\d+\s*(?:hour|hr|day|week|month)s?)\s+horizon', query.lower())
+            if horizon_match:
+                horizon = horizon_match.group(1)
+                days = _get_optimal_days_for_horizon(horizon)
+            else:
+                days = _extract_days(query)
+        else:
+            days = _extract_days(query)
+        
         # Parse the query to determine the operation
         if "current_price" in query.lower() or "price" in query.lower():
             result = _get_current_price(crypto_id, session)
         elif "ohlcv" in query.lower() or "historical" in query.lower():
-            days = _extract_days(query)
             result = _get_ohlcv_data(crypto_id, days, session)
         elif "market_stats" in query.lower() or "stats" in query.lower():
             result = _get_market_stats(crypto_id, session)
@@ -218,7 +266,7 @@ def coingecko_tool(query: str) -> str:
             # Default comprehensive data
             current_data = _get_current_price(crypto_id, session)
             market_stats = _get_market_stats(crypto_id, session)
-            ohlcv_data = _get_ohlcv_data(crypto_id, 7, session)
+            ohlcv_data = _get_ohlcv_data(crypto_id, days, session)
             
             # Add rate limiting
             time.sleep(Config.API_RATE_LIMIT_DELAY)

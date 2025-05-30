@@ -4,7 +4,7 @@ Crew Manager for orchestrating the CryptoAgentForecaster system.
 
 import io
 import contextlib
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 from crewai import Crew, Task
 from rich.console import Console
 from rich.table import Table
@@ -291,6 +291,15 @@ class CryptoForecastingCrew:
             "forecast": self._clean_forecast_text(final_forecast),  # Clean base64 from display text
             "direction": self._extract_direction(final_forecast),
             "confidence": self._extract_confidence(final_forecast),
+            "current_price": self._extract_current_price(final_forecast),
+            "targets": self._extract_targets(final_forecast),
+            "stop_loss": self._extract_stop_loss(final_forecast),
+            "take_profits": self._extract_take_profits(final_forecast),
+            "risk_reward_ratio": self._extract_risk_reward_ratio(final_forecast),
+            "position_size": self._extract_position_size(final_forecast),
+            "time_horizon": self._extract_time_horizon(final_forecast),
+            "key_catalysts": self._extract_key_catalysts(final_forecast),
+            "risk_factors": self._extract_risk_factors(final_forecast),
             "explanation": self._extract_explanation(final_forecast),
             "timestamp": self._get_timestamp(),
             "charts_generated": len(self.current_run_charts) > 0,
@@ -311,9 +320,16 @@ class CryptoForecastingCrew:
             
             # Store the chart data for saving
             self.current_run_charts[chart_name] = chart_data
+            print(f"✅ Chart data captured: {len(chart_data)} characters")
             
             # Clear the global chart data
             clear_chart_data()
+        else:
+            # Check if forecast mentions chart generation
+            if "chart" in forecast_text.lower() and "generated" in forecast_text.lower():
+                print("⚠️ Chart mentioned in forecast but no chart data found")
+            else:
+                print("ℹ️ No chart data available from technical analysis")
         
         return charts_info
     
@@ -324,13 +340,87 @@ class CryptoForecastingCrew:
     
     def _extract_direction(self, forecast_text: str) -> str:
         """Extract direction from forecast text."""
+        import re
+        
+        # First try to find explicit direction declarations with highest priority
+        direction_patterns = [
+            r'\*\*Direction\*\*:\s*(UP|DOWN|NEUTRAL)',
+            r'\*\*Direction:\*\*\s*(UP|DOWN|NEUTRAL)',
+            r'Direction:\s*(UP|DOWN|NEUTRAL)',
+            r'\*\s*\*\*Direction\*\*\s*(UP|DOWN|NEUTRAL)',
+            r'Direction\s*[:\-]\s*(UP|DOWN|NEUTRAL)',
+        ]
+        
+        for pattern in direction_patterns:
+            match = re.search(pattern, forecast_text, re.IGNORECASE)
+            if match:
+                direction = match.group(1).upper()
+                print(f"✅ Direction extracted from explicit field: {direction}")
+                return direction
+        
+        # Secondary patterns for less explicit mentions
+        fallback_patterns = [
+            r'forecast["\s:]*["\']?(UP|DOWN|NEUTRAL)',
+            r'direction["\s:]*["\']?(UP|DOWN|NEUTRAL)',
+            r'overall\s+(?:direction|forecast)["\s:]*["\']?(UP|DOWN|NEUTRAL)',
+        ]
+        
+        for pattern in fallback_patterns:
+            match = re.search(pattern, forecast_text, re.IGNORECASE)
+            if match:
+                direction = match.group(1).upper()
+                print(f"ℹ️ Direction extracted from secondary pattern: {direction}")
+                return direction
+        
+        # Final fallback to counting directional words, but with careful weighting
         text_upper = forecast_text.upper()
         
-        if "UP" in text_upper or "BULLISH" in text_upper or "BUY" in text_upper:
+        # Count strong directional indicators
+        strong_bullish = (
+            text_upper.count("BULLISH") + 
+            text_upper.count("BUY SIGNAL") + 
+            text_upper.count("STRONG UPWARD") +
+            text_upper.count("STRONG POSITIVE")
+        )
+        
+        strong_bearish = (
+            text_upper.count("BEARISH") + 
+            text_upper.count("SELL SIGNAL") + 
+            text_upper.count("STRONG DOWNWARD") +
+            text_upper.count("STRONG NEGATIVE")
+        )
+        
+        # Count neutral indicators
+        neutral_indicators = (
+            text_upper.count("NEUTRAL") +
+            text_upper.count("MIXED SIGNALS") +
+            text_upper.count("CONSOLIDATION") +
+            text_upper.count("UNCERTAIN") +
+            text_upper.count("CONFLICTING")
+        )
+        
+        # Check for explicit forecasts
+        forecast_up = len(re.findall(r'forecast.*?(?:up|bullish|positive)', text_upper))
+        forecast_down = len(re.findall(r'forecast.*?(?:down|bearish|negative)', text_upper))
+        forecast_neutral = len(re.findall(r'forecast.*?(?:neutral|mixed|uncertain)', text_upper))
+        
+        # Calculate totals
+        total_bullish = strong_bullish + forecast_up
+        total_bearish = strong_bearish + forecast_down  
+        total_neutral = neutral_indicators + forecast_neutral
+        
+        # Make decision with preference for explicit neutral signals
+        if total_neutral > max(total_bullish, total_bearish):
+            print(f"ℹ️ Direction extracted from neutral signals: NEUTRAL (neutral: {total_neutral}, bullish: {total_bullish}, bearish: {total_bearish})")
+            return "NEUTRAL"
+        elif total_bullish > total_bearish:
+            print(f"ℹ️ Direction extracted from sentiment analysis: UP (bullish: {total_bullish}, bearish: {total_bearish}, neutral: {total_neutral})")
             return "UP"
-        elif "DOWN" in text_upper or "BEARISH" in text_upper or "SELL" in text_upper:
+        elif total_bearish > total_bullish:
+            print(f"ℹ️ Direction extracted from sentiment analysis: DOWN (bearish: {total_bearish}, bullish: {total_bullish}, neutral: {total_neutral})")
             return "DOWN"
         else:
+            print(f"ℹ️ Direction defaulting to NEUTRAL due to balanced signals (bullish: {total_bullish}, bearish: {total_bearish}, neutral: {total_neutral})")
             return "NEUTRAL"
     
     def _extract_confidence(self, forecast_text: str) -> str:
@@ -343,6 +433,190 @@ class CryptoForecastingCrew:
             return "LOW"
         else:
             return "MEDIUM"
+    
+    def _extract_current_price(self, forecast_text: str) -> str:
+        """Extract current price from forecast text."""
+        import re
+        patterns = [
+            r'\*\*Current Price\*\*:\s*\$?([0-9,]+\.?[0-9]*)',
+            r'Current Price:\s*\$?([0-9,]+\.?[0-9]*)',
+            r'Current:\s*\$?([0-9,]+\.?[0-9]*)',
+            r'current.price.*?\$([0-9,]+\.?[0-9]*)',
+            r'Price.*?\$([0-9,]+\.?[0-9]*)',
+        ]
+        
+        for pattern in patterns:
+            match = re.search(pattern, forecast_text, re.IGNORECASE)
+            if match:
+                # Clean up the price (remove commas)
+                price = match.group(1).replace(',', '')
+                return f"${price}"
+        return "Not specified"
+    
+    def _extract_targets(self, forecast_text: str) -> Dict[str, str]:
+        """Extract target prices from forecast text."""
+        import re
+        targets = {}
+        
+        # Look for primary and secondary targets
+        primary_patterns = [
+            r'\*\*Primary Target\*\*:\s*\$?([0-9,]+\.?[0-9]*)\s*\(Probability:\s*([0-9]+)%\)',
+            r'Target 1.*?\$([0-9,]+\.?[0-9]*)\s*\(Probability:\s*([0-9]+)%\)',
+            r'Primary.*?\$([0-9,]+\.?[0-9]*)\s*\(.*?([0-9]+)%\)',
+        ]
+        
+        secondary_patterns = [
+            r'\*\*Secondary Target\*\*:\s*\$?([0-9,]+\.?[0-9]*)\s*\(Probability:\s*([0-9]+)%\)',
+            r'Target 2.*?\$([0-9,]+\.?[0-9]*)\s*\(Probability:\s*([0-9]+)%\)',
+            r'Secondary.*?\$([0-9,]+\.?[0-9]*)\s*\(.*?([0-9]+)%\)',
+        ]
+        
+        # Try to find primary target
+        for pattern in primary_patterns:
+            match = re.search(pattern, forecast_text, re.IGNORECASE | re.DOTALL)
+            if match:
+                targets['primary'] = f"${match.group(1)} ({match.group(2)}%)"
+                break
+        
+        # Try to find secondary target  
+        for pattern in secondary_patterns:
+            match = re.search(pattern, forecast_text, re.IGNORECASE | re.DOTALL)
+            if match:
+                targets['secondary'] = f"${match.group(1)} ({match.group(2)}%)"
+                break
+        
+        return targets
+    
+    def _extract_stop_loss(self, forecast_text: str) -> str:
+        """Extract stop loss level from forecast text."""
+        import re
+        patterns = [
+            r'\*\*Stop Loss Level\*\*:\s*\$?([0-9,]+\.?[0-9]*)',
+            r'Stop Loss:\s*\$?([0-9,]+\.?[0-9]*)',
+            r'Stop-Loss:\s*\$?([0-9,]+\.?[0-9]*)',
+            r'stop.loss.*?\$([0-9,]+\.?[0-9]*)',
+        ]
+        
+        for pattern in patterns:
+            match = re.search(pattern, forecast_text, re.IGNORECASE)
+            if match:
+                return f"${match.group(1)}"
+        return "Not specified"
+    
+    def _extract_take_profits(self, forecast_text: str) -> Dict[str, str]:
+        """Extract take profit levels from forecast text."""
+        import re
+        take_profits = {}
+        
+        # Look for take profit patterns
+        tp1_patterns = [
+            r'\*\*Take Profit 1\*\*:\s*\$?([0-9,]+\.?[0-9]*)',
+            r'Take Profit 1.*?\$([0-9,]+\.?[0-9]*)',
+            r'TP1.*?\$([0-9,]+\.?[0-9]*)',
+        ]
+        
+        tp2_patterns = [
+            r'\*\*Take Profit 2\*\*:\s*\$?([0-9,]+\.?[0-9]*)',
+            r'Take Profit 2.*?\$([0-9,]+\.?[0-9]*)',
+            r'TP2.*?\$([0-9,]+\.?[0-9]*)',
+        ]
+        
+        # Try to find TP1
+        for pattern in tp1_patterns:
+            match = re.search(pattern, forecast_text, re.IGNORECASE)
+            if match:
+                take_profits['tp1'] = f"${match.group(1)}"
+                break
+        
+        # Try to find TP2
+        for pattern in tp2_patterns:
+            match = re.search(pattern, forecast_text, re.IGNORECASE)
+            if match:
+                take_profits['tp2'] = f"${match.group(1)}"
+                break
+        
+        return take_profits
+    
+    def _extract_risk_reward_ratio(self, forecast_text: str) -> str:
+        """Extract risk-reward ratio from forecast text."""
+        import re
+        patterns = [
+            r'\*\*Risk-Reward Ratio\*\*:\s*([0-9.:]+)',
+            r'Risk-Reward Ratio:\s*([0-9.:]+)',
+            r'Risk-Reward:\s*([0-9.:]+)',
+            r'Risk.Reward.*?([0-9]+:[0-9.]+)',
+            r'Ratio:\s*([0-9]+:[0-9.]+)',
+        ]
+        
+        for pattern in patterns:
+            match = re.search(pattern, forecast_text, re.IGNORECASE)
+            if match:
+                return match.group(1)
+        return "Not specified"
+    
+    def _extract_position_size(self, forecast_text: str) -> str:
+        """Extract position size recommendation from forecast text."""
+        import re
+        patterns = [
+            r'\*\*Position Size Recommendation\*\*:\s*([0-9]+)%',
+            r'Position Size:\s*([0-9]+)%',
+            r'position.size.*?([0-9]+)%',
+            r'([0-9]+)%.*?portfolio',
+        ]
+        
+        for pattern in patterns:
+            match = re.search(pattern, forecast_text, re.IGNORECASE)
+            if match:
+                return f"{match.group(1)}%"
+        return "Not specified"
+    
+    def _extract_time_horizon(self, forecast_text: str) -> str:
+        """Extract time horizon from forecast text."""
+        import re
+        patterns = [
+            r'\*\*Time Horizon\*\*:\s*([^-\n]+)',
+            r'Time Horizon:\s*([^-\n]+)'
+        ]
+        
+        for pattern in patterns:
+            match = re.search(pattern, forecast_text, re.IGNORECASE)
+            if match:
+                return match.group(1).strip()
+        return "Not specified"
+    
+    def _extract_key_catalysts(self, forecast_text: str) -> List[str]:
+        """Extract key catalysts from forecast text."""
+        import re
+        patterns = [
+            r'\*\*Key Catalysts\*\*:\s*([^*]+?)(?=\*\*|$)',
+            r'Key Catalysts:\s*([^*]+?)(?=\*\*|$)'
+        ]
+        
+        for pattern in patterns:
+            match = re.search(pattern, forecast_text, re.IGNORECASE | re.DOTALL)
+            if match:
+                catalysts_text = match.group(1).strip()
+                # Split by common delimiters
+                catalysts = [c.strip() for c in re.split(r'[,;-]|\n-', catalysts_text) if c.strip()]
+                return catalysts[:3]  # Limit to top 3
+        return ["Not specified"]
+    
+    def _extract_risk_factors(self, forecast_text: str) -> List[str]:
+        """Extract risk factors from forecast text."""
+        import re
+        patterns = [
+            r'\*\*Risk Factors\*\*:\s*([^*]+?)(?=\*\*|$)',
+            r'Risk Factors:\s*([^*]+?)(?=\*\*|$)'
+        ]
+        
+        for pattern in patterns:
+            match = re.search(pattern, forecast_text, re.IGNORECASE | re.DOTALL)
+            if match:
+                risks_text = match.group(1).strip()
+                # Split by common delimiters
+                risks = [r.strip() for r in re.split(r'[,;-]|\n-', risks_text) if r.strip()]
+                return risks[:3]  # Limit to top 3
+        return ["Not specified"]
     
     def _extract_explanation(self, forecast_text: str) -> str:
         """Extract explanation from forecast text."""
@@ -391,14 +665,43 @@ class CryptoForecastingCrew:
     def _display_results(self, results: Dict[str, Any]):
         """Display formatted results to console."""
         
-        # Create results table
+        # Create main results table
         table = Table(title=f"📊 Forecast Results for {results['crypto_name'].upper()}")
         table.add_column("Metric", style="cyan")
         table.add_column("Value", style="white")
         
         table.add_row("Direction", self._format_direction(results['direction']))
         table.add_row("Confidence", results['confidence'])
+        table.add_row("Current Price", results.get('current_price', 'Not specified'))
         table.add_row("Forecast Horizon", results['forecast_horizon'])
+        
+        # Add target information
+        targets = results.get('targets', {})
+        if 'primary' in targets:
+            table.add_row("Primary Target", targets['primary'])
+        if 'secondary' in targets:
+            table.add_row("Secondary Target", targets['secondary'])
+        
+        # Add risk management info
+        stop_loss = results.get('stop_loss', 'Not specified')
+        table.add_row("Stop Loss", stop_loss)
+        
+        take_profits = results.get('take_profits', {})
+        if 'tp1' in take_profits:
+            table.add_row("Take Profit 1", take_profits['tp1'])
+        if 'tp2' in take_profits:
+            table.add_row("Take Profit 2", take_profits['tp2'])
+        
+        # Add other trading metrics
+        risk_reward = results.get('risk_reward_ratio', 'Not specified')
+        table.add_row("Risk-Reward Ratio", risk_reward)
+        
+        position_size = results.get('position_size', 'Not specified')
+        table.add_row("Position Size", position_size)
+        
+        time_horizon = results.get('time_horizon', 'Not specified')
+        table.add_row("Time to Target", time_horizon)
+        
         table.add_row("Timestamp", results['timestamp'])
         
         if results.get('charts_generated'):
@@ -426,9 +729,23 @@ class CryptoForecastingCrew:
             
             self.console.print(exec_table)
         
+        # Display key catalysts and risk factors
+        catalysts = results.get('key_catalysts', ['Not specified'])
+        risk_factors = results.get('risk_factors', ['Not specified'])
+        
+        if catalysts != ['Not specified'] or risk_factors != ['Not specified']:
+            catalyst_risk_table = Table(title="🎯 Key Factors")
+            catalyst_risk_table.add_column("Type", style="cyan")
+            catalyst_risk_table.add_column("Factors", style="white")
+            
+            catalyst_risk_table.add_row("📈 Key Catalysts", "\n• ".join([""] + catalysts[:3]))
+            catalyst_risk_table.add_row("⚠️ Risk Factors", "\n• ".join([""] + risk_factors[:3]))
+            
+            self.console.print(catalyst_risk_table)
+        
         # Display explanation (cleaned)
         explanation_panel = Panel(
-            results['explanation'][:1000] + "..." if len(results['explanation']) > 1000 else results['explanation'],
+            results['explanation'][:1500] + "..." if len(results['explanation']) > 1500 else results['explanation'],
             title="🧠 Analysis & Reasoning",
             expand=False
         )

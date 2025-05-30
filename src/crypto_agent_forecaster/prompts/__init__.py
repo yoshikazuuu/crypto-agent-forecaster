@@ -14,11 +14,16 @@ def get_task_prompts():
         Fetch comprehensive market data for {crypto_name} to support the {forecast_horizon} forecast.
         
         Your task:
-        1. Get historical OHLCV data for the past 30 days with daily granularity
+        1. Get historical OHLCV data optimized for the {forecast_horizon} forecast horizon:
+           - For hour-based forecasts (1hr, 4hr, 12hr): Get 3-14 days of data
+           - For day-based forecasts (1d, 3d, 7d): Get 1-3 months of data  
+           - For week-based forecasts: Get 3-4 months of data
+           - For month-based forecasts: Get 1 year of data
         2. Fetch current market statistics (price, volume, market cap)
         3. Ensure data quality and handle any API errors gracefully
         4. Format the data in JSON structure suitable for technical analysis
         
+        Use the query format: "{crypto_name} ohlcv {forecast_horizon} horizon" to get optimal data amount.
         Focus on accuracy and completeness of the data as it forms the foundation for all subsequent analysis.
         """,
         
@@ -54,7 +59,7 @@ def get_task_prompts():
         """,
         
         "forecasting_task": """
-        Generate the final {forecast_horizon} forecast for {crypto_name} by integrating sentiment and technical analysis.
+        Generate the final comprehensive {forecast_horizon} forecast and trading strategy for {crypto_name} by integrating sentiment and technical analysis.
         
         Your task:
         1. Review the sentiment analysis findings, paying attention to:
@@ -67,6 +72,7 @@ def get_task_prompts():
            - Technical indicator signals
            - Chart pattern implications
            - Trend and momentum assessment
+           - Support and resistance levels
            - Overall technical outlook
         
         3. Synthesize the information considering:
@@ -75,14 +81,40 @@ def get_task_prompts():
            - Market volatility and uncertainty factors
            - Appropriate confidence levels
         
-        4. Provide your final forecast including:
-           - Direction: UP, DOWN, or NEUTRAL
-           - Confidence level: HIGH, MEDIUM, or LOW
-           - Detailed explanation of your reasoning
-           - Key factors that influenced your decision
-           - Risk considerations and caveats
+        4. Provide your final comprehensive forecast in this EXACT format:
         
-        Remember: In crypto markets, sentiment can drive short-term movements, but technical analysis often provides better risk/reward insights. Weight your analysis accordingly.
+        **Direction**: [UP/DOWN/NEUTRAL]
+        **Confidence level**: [HIGH/MEDIUM/LOW]
+        **Current Price**: $[price]
+        **Target Price(s)**:
+        - **Primary Target**: $[price] (Probability: [%]%) - [reasoning]
+        - **Secondary Target**: $[price] (Probability: [%]%) - [reasoning]
+        
+        **Stop Loss Level**: $[price] - [reasoning]
+        **Take Profit Level(s)**:
+        - **Take Profit 1**: $[price] - [reasoning]
+        - **Take Profit 2**: $[price] - [reasoning]
+        
+        **Risk-Reward Ratio**: [ratio] ([calculation])
+        **Position Size Recommendation**: [percentage]% of portfolio - [reasoning]
+        **Time Horizon**: [timeframe] - [reasoning]
+        **Key Catalysts**: [list of events/factors]
+        **Risk Factors**: [list of risks]
+        **Entry Strategy**: [detailed entry plan]
+        **Exit Strategy**: [detailed exit plan]
+        **Market Context**: [broader market analysis]
+        
+        **Detailed Analysis & Reasoning**:
+        [Provide comprehensive step-by-step analysis that supports your direction, targets, and risk levels. Explain how you integrated sentiment and technical signals. Be specific about what indicators or sentiment factors led to your conclusion.]
+        
+        IMPORTANT REQUIREMENTS:
+        - The **Direction** field MUST match your overall conclusion in the detailed analysis
+        - Use specific price levels, not ranges or vague terms
+        - Include probability estimates for targets
+        - Provide clear risk management guidelines
+        - Your detailed analysis should support and align with your direction choice
+        - Be consistent: if you say UP in direction, your analysis should primarily support bullish outlook
+        - If conflicted signals, choose NEUTRAL and explain the uncertainty
         """
     }
 

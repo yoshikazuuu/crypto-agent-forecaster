@@ -143,142 +143,234 @@ def technical_analysis_tool(ohlcv_data: str, crypto_name: str, generate_chart: b
     def _create_technical_chart(df: pd.DataFrame, indicators: Dict[str, Any], crypto_name: str) -> str:
         """Create a comprehensive technical analysis chart and return as base64 encoded image."""
         try:
-            # Set up the plot style
-            plt.style.use('dark_background')
-            fig, axes = plt.subplots(4, 1, figsize=(16, 20), gridspec_kw={'height_ratios': [3, 1, 1, 1]})
-            fig.suptitle(f'{crypto_name.title()} - Technical Analysis', fontsize=20, fontweight='bold', color='white')
+            # Validate inputs
+            if df.empty or len(df) < 2:
+                print("Error: Insufficient data for chart generation")
+                return ""
             
-            # Convert timestamp to datetime if needed
+            # Import mplfinance for candlestick charts
+            try:
+                import mplfinance as mpf
+                from matplotlib.patches import Rectangle
+            except ImportError:
+                print("mplfinance not available, falling back to line chart")
+                # Fallback to line chart if mplfinance not available
+                return self._create_fallback_line_chart(df, indicators, crypto_name)
+            
+            # Prepare data for mplfinance
             if 'timestamp' in df.columns:
-                df['datetime'] = pd.to_datetime(df['timestamp'], unit='s')
+                df['datetime'] = pd.to_datetime(df['timestamp'], unit='s' if df['timestamp'].dtype in ['int64', 'float64'] else None)
             else:
                 df['datetime'] = pd.to_datetime(df.index)
             
-            # Main price chart with moving averages and Bollinger Bands
-            ax1 = axes[0]
-            ax1.plot(df['datetime'], df['close'], color='#00D4AA', linewidth=2, label='Close Price', alpha=0.9)
+            # Set datetime as index for mplfinance
+            chart_df = df.set_index('datetime')
             
-            # Moving averages
+            # Prepare additional plots
+            apd = []
+            
+            # Add moving averages
             if len(df) >= 20:
-                sma_20 = ta.trend.SMAIndicator(df['close'], window=20).sma_indicator()
-                ax1.plot(df['datetime'], sma_20, color='#FFB800', linewidth=1.5, label='SMA 20', alpha=0.7)
+                try:
+                    sma_20 = ta.trend.SMAIndicator(df['close'], window=20).sma_indicator()
+                    chart_df['SMA20'] = sma_20.values
+                except:
+                    pass
             
             if len(df) >= 50:
-                sma_50 = ta.trend.SMAIndicator(df['close'], window=50).sma_indicator()
-                ax1.plot(df['datetime'], sma_50, color='#FF6B6B', linewidth=1.5, label='SMA 50', alpha=0.7)
+                try:
+                    sma_50 = ta.trend.SMAIndicator(df['close'], window=50).sma_indicator()
+                    chart_df['SMA50'] = sma_50.values
+                except:
+                    pass
             
-            # RMA
+            # Add RMA
             if len(df) >= 21:
-                rma_21 = _calculate_rma(df['close'], 21)
-                ax1.plot(df['datetime'], rma_21, color='#4ECDC4', linewidth=1.5, label='RMA 21', alpha=0.7, linestyle='--')
+                try:
+                    rma_21 = _calculate_rma(df['close'], 21)
+                    chart_df['RMA21'] = rma_21.values
+                except:
+                    pass
             
-            # Bollinger Bands
+            # Add Bollinger Bands
             if len(df) >= 20:
-                bb_indicator = ta.volatility.BollingerBands(df['close'], window=20, window_dev=2)
-                bb_upper = bb_indicator.bollinger_hband()
-                bb_lower = bb_indicator.bollinger_lband()
-                bb_middle = bb_indicator.bollinger_mavg()
-                
-                ax1.fill_between(df['datetime'], bb_upper, bb_lower, alpha=0.1, color='#8B5CF6', label='Bollinger Bands')
-                ax1.plot(df['datetime'], bb_upper, color='#8B5CF6', linewidth=1, alpha=0.6)
-                ax1.plot(df['datetime'], bb_lower, color='#8B5CF6', linewidth=1, alpha=0.6)
-                ax1.plot(df['datetime'], bb_middle, color='#8B5CF6', linewidth=1, alpha=0.8, linestyle=':')
+                try:
+                    bb_indicator = ta.volatility.BollingerBands(df['close'], window=20, window_dev=2)
+                    chart_df['BB_Upper'] = bb_indicator.bollinger_hband().values
+                    chart_df['BB_Lower'] = bb_indicator.bollinger_lband().values
+                    chart_df['BB_Middle'] = bb_indicator.bollinger_mavg().values
+                except:
+                    pass
             
+            # Prepare moving average plots
+            mav_configs = []
+            if 'SMA20' in chart_df.columns:
+                mav_configs.append(mpf.make_addplot(chart_df['SMA20'], color='#FFB800', width=1.5, alpha=0.7))
+            if 'SMA50' in chart_df.columns:
+                mav_configs.append(mpf.make_addplot(chart_df['SMA50'], color='#FF6B6B', width=1.5, alpha=0.7))
+            if 'RMA21' in chart_df.columns:
+                mav_configs.append(mpf.make_addplot(chart_df['RMA21'], color='#4ECDC4', width=1.5, alpha=0.7, linestyle='--'))
+            
+            # Add Bollinger Bands
+            if all(col in chart_df.columns for col in ['BB_Upper', 'BB_Lower', 'BB_Middle']):
+                mav_configs.extend([
+                    mpf.make_addplot(chart_df['BB_Upper'], color='#8B5CF6', width=1, alpha=0.6),
+                    mpf.make_addplot(chart_df['BB_Lower'], color='#8B5CF6', width=1, alpha=0.6),
+                    mpf.make_addplot(chart_df['BB_Middle'], color='#8B5CF6', width=1, alpha=0.8, linestyle=':')
+                ])
+            
+            # Prepare additional plots for indicators
+            if len(df) >= 14:
+                try:
+                    # RSI
+                    rsi = ta.momentum.RSIIndicator(df['close'], window=14).rsi()
+                    rsi_plot = mpf.make_addplot(rsi, panel=1, color='#F59E0B', width=2, ylabel='RSI')
+                    apd.append(rsi_plot)
+                    
+                    # Add RSI levels
+                    rsi_levels = pd.Series([70]*len(rsi), index=rsi.index)
+                    rsi_levels_low = pd.Series([30]*len(rsi), index=rsi.index)
+                    apd.extend([
+                        mpf.make_addplot(rsi_levels, panel=1, color='red', width=1, alpha=0.5, linestyle='--'),
+                        mpf.make_addplot(rsi_levels_low, panel=1, color='green', width=1, alpha=0.5, linestyle='--')
+                    ])
+                except:
+                    pass
+            
+            if len(df) >= 26:
+                try:
+                    # MACD
+                    macd_indicator = ta.trend.MACD(df['close'], window_slow=26, window_fast=12, window_sign=9)
+                    macd_line = macd_indicator.macd()
+                    macd_signal = macd_indicator.macd_signal()
+                    macd_histogram = macd_indicator.macd_diff()
+                    
+                    if not macd_line.empty:
+                        apd.append(mpf.make_addplot(macd_line, panel=2, color='#00D4AA', width=2, ylabel='MACD'))
+                    if not macd_signal.empty:
+                        apd.append(mpf.make_addplot(macd_signal, panel=2, color='#FF6B6B', width=2))
+                    if not macd_histogram.empty:
+                        apd.append(mpf.make_addplot(macd_histogram, panel=2, type='bar', color='#10B981', alpha=0.6, width=0.8))
+                except:
+                    pass
+            
+            # Volume plot
+            volume_colors = ['#10B981' if row['close'] >= row['open'] else '#EF4444' for _, row in chart_df.iterrows()]
+            apd.append(mpf.make_addplot(chart_df['volume'], panel=3, type='bar', color=volume_colors, alpha=0.7, ylabel='Volume'))
+            
+            # Calculate price change for title
+            current_price = df['close'].iloc[-1] if not df['close'].empty else 0
+            price_change = ((current_price - df['close'].iloc[0]) / df['close'].iloc[0] * 100) if len(df) > 1 else 0
+            
+            # Create the style
+            custom_style = mpf.make_mpf_style(
+                base_mpf_style='charles',
+                marketcolors=mpf.make_marketcolors(
+                    up='#10B981',    # Green for bullish candles
+                    down='#EF4444',  # Red for bearish candles
+                    edge='inherit',
+                    wick={'up': '#10B981', 'down': '#EF4444'},
+                    volume={'up': '#10B981', 'down': '#EF4444'}
+                ),
+                facecolor='#1a1a1a',
+                edgecolor='#333333',
+                gridcolor='#333333',
+                gridstyle='-',
+                y_on_right=False
+            )
+            
+            # Create the plot
+            fig, axes = mpf.plot(
+                chart_df[['open', 'high', 'low', 'close', 'volume']],
+                type='candle',
+                style=custom_style,
+                addplot=apd if apd else None,
+                volume=False,  # We'll add volume as a separate panel
+                title=f'{crypto_name.title()} - Technical Analysis\nCurrent: ${current_price:.2f} ({price_change:+.2f}%) | Data Points: {len(df)}',
+                ylabel='Price ($)',
+                figsize=(16, 20),
+                panel_ratios=(3, 1, 1, 1),
+                returnfig=True,
+                tight_layout=True
+            )
+            
+            # Customize the figure
+            fig.patch.set_facecolor('#1a1a1a')
+            for ax in axes:
+                ax.set_facecolor('#1a1a1a')
+                ax.tick_params(colors='white')
+                ax.xaxis.label.set_color('white')
+                ax.yaxis.label.set_color('white')
+                ax.title.set_color('white')
+                ax.grid(True, alpha=0.3, color='#333333')
+            
+            # Set title color
+            fig.suptitle(f'{crypto_name.title()} - Technical Analysis\nCurrent: ${current_price:.2f} ({price_change:+.2f}%) | Data Points: {len(df)}',
+                        fontsize=16, fontweight='bold', color='white', y=0.98)
+            
+            # Convert to base64
+            buffer = io.BytesIO()
+            fig.savefig(buffer, format='png', dpi=150, bbox_inches='tight', facecolor='#1a1a1a', edgecolor='none')
+            buffer.seek(0)
+            image_base64 = base64.b64encode(buffer.getvalue()).decode()
+            plt.close(fig)
+            
+            print(f"Successfully generated OHLC candlestick chart for {crypto_name} with {len(df)} data points")
+            return image_base64
+            
+        except Exception as e:
+            print(f"Error creating OHLC chart: {e}")
+            # Fallback to the original line chart
+            return self._create_fallback_line_chart(df, indicators, crypto_name)
+    
+    def _create_fallback_line_chart(self, df: pd.DataFrame, indicators: Dict[str, Any], crypto_name: str) -> str:
+        """Fallback line chart if OHLC chart fails."""
+        try:
+            # Original line chart code as fallback
+            plt.style.use('dark_background')
+            fig, axes = plt.subplots(4, 1, figsize=(16, 20), gridspec_kw={'height_ratios': [3, 1, 1, 1]})
+            
+            current_price = df['close'].iloc[-1] if not df['close'].empty else 0
+            price_change = ((current_price - df['close'].iloc[0]) / df['close'].iloc[0] * 100) if len(df) > 1 else 0
+            
+            fig.suptitle(f'{crypto_name.title()} - Technical Analysis (Fallback)\nCurrent: ${current_price:.2f} ({price_change:+.2f}%) | Data Points: {len(df)}', 
+                        fontsize=16, fontweight='bold', color='white')
+            
+            if 'timestamp' in df.columns:
+                df['datetime'] = pd.to_datetime(df['timestamp'], unit='s' if df['timestamp'].dtype in ['int64', 'float64'] else None)
+            else:
+                df['datetime'] = pd.to_datetime(df.index)
+            
+            # Simple line chart
+            ax1 = axes[0]
+            ax1.plot(df['datetime'], df['close'], color='#00D4AA', linewidth=2, label='Close Price', alpha=0.9)
             ax1.set_ylabel('Price ($)', fontsize=12, color='white')
             ax1.legend(loc='upper left', fontsize=10)
             ax1.grid(True, alpha=0.3)
             ax1.tick_params(colors='white')
             
-            # RSI with Stochastic RSI
-            ax2 = axes[1]
-            if len(df) >= 14:
-                rsi = ta.momentum.RSIIndicator(df['close'], window=14).rsi()
-                ax2.plot(df['datetime'], rsi, color='#F59E0B', linewidth=2, label='RSI')
-                
-                # Stochastic RSI
-                stoch_rsi = ta.momentum.StochRSIIndicator(df['close'], window=14, smooth1=3, smooth2=3)
-                stoch_k = stoch_rsi.stochrsi_k() * 100  # Convert to 0-100 scale
-                stoch_d = stoch_rsi.stochrsi_d() * 100
-                ax2.plot(df['datetime'], stoch_k, color='#06B6D4', linewidth=1.5, label='Stoch RSI %K', alpha=0.8)
-                ax2.plot(df['datetime'], stoch_d, color='#8B5CF6', linewidth=1.5, label='Stoch RSI %D', alpha=0.8)
-                
-                # Williams %R
-                williams_r = ta.momentum.WilliamsRIndicator(df['high'], df['low'], df['close'], lbp=14).williams_r()
-                ax2_twin = ax2.twinx()
-                ax2_twin.plot(df['datetime'], williams_r, color='#EF4444', linewidth=1, label='Williams %R', alpha=0.6)
-                ax2_twin.set_ylabel('Williams %R', fontsize=10, color='#EF4444')
-                ax2_twin.tick_params(colors='#EF4444')
-                ax2_twin.set_ylim(-100, 0)
-            
-            ax2.axhline(y=70, color='red', linestyle='--', alpha=0.5)
-            ax2.axhline(y=30, color='green', linestyle='--', alpha=0.5)
-            ax2.axhline(y=50, color='white', linestyle='-', alpha=0.3)
-            ax2.set_ylabel('RSI / Stoch RSI', fontsize=12, color='white')
-            ax2.set_ylim(0, 100)
-            ax2.legend(loc='upper left', fontsize=9)
-            ax2.grid(True, alpha=0.3)
-            ax2.tick_params(colors='white')
-            
-            # MACD
-            ax3 = axes[2]
-            if len(df) >= 26:
-                macd_indicator = ta.trend.MACD(df['close'], window_slow=26, window_fast=12, window_sign=9)
-                macd_line = macd_indicator.macd()
-                macd_signal = macd_indicator.macd_signal()
-                macd_histogram = macd_indicator.macd_diff()
-                
-                ax3.plot(df['datetime'], macd_line, color='#00D4AA', linewidth=2, label='MACD')
-                ax3.plot(df['datetime'], macd_signal, color='#FF6B6B', linewidth=2, label='Signal')
-                
-                # MACD Histogram
-                colors = ['#10B981' if x >= 0 else '#EF4444' for x in macd_histogram]
-                ax3.bar(df['datetime'], macd_histogram, color=colors, alpha=0.6, width=0.8)
-            
-            ax3.axhline(y=0, color='white', linestyle='-', alpha=0.3)
-            ax3.set_ylabel('MACD', fontsize=12, color='white')
-            ax3.legend(loc='upper left', fontsize=9)
-            ax3.grid(True, alpha=0.3)
-            ax3.tick_params(colors='white')
-            
-            # Volume with OBV
-            ax4 = axes[3]
-            volume_colors = ['#10B981' if df['close'].iloc[i] >= df['open'].iloc[i] else '#EF4444' 
-                           for i in range(len(df))]
-            ax4.bar(df['datetime'], df['volume'], color=volume_colors, alpha=0.7)
-            
-            # OBV on secondary y-axis
-            if len(df) >= 2:
-                obv = ta.volume.OnBalanceVolumeIndicator(df['close'], df['volume']).on_balance_volume()
-                ax4_twin = ax4.twinx()
-                ax4_twin.plot(df['datetime'], obv, color='#F59E0B', linewidth=2, alpha=0.8, label='OBV')
-                ax4_twin.set_ylabel('OBV', fontsize=10, color='#F59E0B')
-                ax4_twin.tick_params(colors='#F59E0B')
-                ax4_twin.legend(loc='upper right', fontsize=9)
-            
-            ax4.set_ylabel('Volume', fontsize=12, color='white')
-            ax4.set_xlabel('Date', fontsize=12, color='white')
-            ax4.grid(True, alpha=0.3)
-            ax4.tick_params(colors='white')
-            
-            # Format x-axis
-            for ax in axes:
-                ax.xaxis.set_major_formatter(mdates.DateFormatter('%m/%d'))
-                ax.xaxis.set_major_locator(mdates.DayLocator(interval=max(1, len(df)//10)))
-                plt.setp(ax.xaxis.get_majorticklabels(), rotation=45)
+            # Simple placeholder for other panels
+            for i, ax in enumerate(axes[1:], 1):
+                ax.text(0.5, 0.5, f'Panel {i+1}', transform=ax.transAxes, 
+                       ha='center', va='center', color='white', fontsize=12)
+                ax.tick_params(colors='white')
+                ax.grid(True, alpha=0.3)
             
             plt.tight_layout()
             
-            # Convert to base64
             buffer = io.BytesIO()
             plt.savefig(buffer, format='png', dpi=150, bbox_inches='tight', facecolor='#1a1a1a', edgecolor='none')
             buffer.seek(0)
             image_base64 = base64.b64encode(buffer.getvalue()).decode()
             plt.close()
             
+            print(f"Generated fallback line chart for {crypto_name}")
             return image_base64
             
         except Exception as e:
-            print(f"Error creating chart: {e}")
+            print(f"Error creating fallback chart: {e}")
+            import traceback
+            print(f"Fallback chart traceback: {traceback.format_exc()}")
             return ""
     
     def _identify_candlestick_patterns(df: pd.DataFrame) -> List[str]:
@@ -508,6 +600,8 @@ def technical_analysis_tool(ohlcv_data: str, crypto_name: str, generate_chart: b
         return "\n".join(summary_parts)
     
     # Main execution
+    global _current_chart_data  # Declare global once at the top
+    
     try:
         # Parse the OHLCV data
         data = json.loads(ohlcv_data)
@@ -543,15 +637,13 @@ def technical_analysis_tool(ohlcv_data: str, crypto_name: str, generate_chart: b
         # Generate summary
         summary = _generate_summary(crypto_name, indicators, patterns, interpretations, current_price)
         
-        # Create chart if requested
-        if generate_chart:
-            chart_image = _create_technical_chart(df, indicators, crypto_name)
-            if chart_image:
-                # Store chart data globally for crew manager to access
-                global _current_chart_data
-                _current_chart_data = chart_image
-                
-                summary += f"\n\n**Technical Analysis Chart:** Generated and available for saving."
+        # Always try to generate chart for completeness
+        chart_image = _create_technical_chart(df, indicators, crypto_name)
+        if chart_image:
+            _current_chart_data = chart_image
+            summary += f"\n\n**Technical Analysis Chart:** Generated successfully and ready for saving."
+        else:
+            summary += f"\n\n**Technical Analysis Chart:** Chart generation failed - see logs for details."
         
         return summary
         
