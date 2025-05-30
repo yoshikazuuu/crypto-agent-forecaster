@@ -36,8 +36,8 @@ class Config:
         "sentiment": {
             "temperature": 0.05,  # Very low creativity for consistent sentiment analysis
             "max_tokens": 3000,
-            "preferred_provider": "anthropic", 
-            "preferred_model": "claude-3-5-sonnet-20241022"
+            "preferred_provider": "openai",  # Temporarily using OpenAI instead of Anthropic
+            "preferred_model": "gpt-4o"
         },
         "technical": {
             "temperature": 0.0,  # Maximum precision for technical analysis

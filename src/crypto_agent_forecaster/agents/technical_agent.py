@@ -18,10 +18,14 @@ def create_technical_analysis_agent() -> Agent:
     # Get agent-specific LLM configuration
     agent_config = Config.get_agent_llm_config("technical")
     
+    # Use agent-specific provider and model instead of global defaults
+    preferred_provider = agent_config.get("preferred_provider", Config.DEFAULT_LLM_PROVIDER)
+    preferred_model = agent_config.get("preferred_model", Config.DEFAULT_LLM_MODEL)
+    
     # Create LLM with configured settings
     llm = LLMFactory.create_llm(
-        provider=Config.DEFAULT_LLM_PROVIDER,
-        model=Config.DEFAULT_LLM_MODEL,
+        provider=preferred_provider,
+        model=preferred_model,
         temperature=agent_config.get("temperature", 0.1),
         max_tokens=agent_config.get("max_tokens", 2500)
     )
