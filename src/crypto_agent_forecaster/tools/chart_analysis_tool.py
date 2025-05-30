@@ -8,6 +8,8 @@ from typing import Optional, Union
 from crewai.tools import tool
 from crewai import Agent, Task, Crew
 from .technical_analysis_tool import get_current_chart_path, get_current_chart_data
+from ..llm_factory import LLMFactory
+from ..config import Config
 
 
 @tool("chart_analysis_tool")
@@ -46,6 +48,14 @@ def chart_analysis_tool(analysis_context: str = "") -> str:
         return f"❌ No chart data available for {crypto_name}. Please run technical analysis first to generate a chart."
     
     try:
+        # Create LLM instance using default configuration
+        llm = LLMFactory.create_llm(
+            provider=Config.DEFAULT_LLM_PROVIDER,
+            model=Config.DEFAULT_LLM_MODEL,
+            temperature=0.1,
+            max_tokens=3000
+        )
+        
         # Create a multimodal agent for chart analysis
         chart_analyst = Agent(
             role="Expert Technical Chart Analyst",
@@ -56,7 +66,8 @@ def chart_analysis_tool(analysis_context: str = "") -> str:
             exceptional ability to interpret complex multi-panel technical charts including candlesticks, 
             volume, RSI, MACD, and moving averages.""",
             multimodal=True,  # Enable multimodal capabilities
-            verbose=True
+            verbose=True,
+            llm=llm  # Use explicitly configured LLM
         )
         
         # Define the analysis focus based on context
@@ -208,6 +219,14 @@ def create_multimodal_chart_analyst(crypto_name: str) -> Agent:
     Returns:
         Configured multimodal Agent for chart analysis
     """
+    # Create LLM instance using default configuration
+    llm = LLMFactory.create_llm(
+        provider=Config.DEFAULT_LLM_PROVIDER,
+        model=Config.DEFAULT_LLM_MODEL,
+        temperature=0.1,
+        max_tokens=3000
+    )
+    
     return Agent(
         role=f"{crypto_name} Technical Chart Specialist",
         goal=f"Provide expert visual analysis of {crypto_name} technical charts with actionable insights",
@@ -237,7 +256,8 @@ def create_multimodal_chart_analyst(crypto_name: str) -> Agent:
         You provide clear, actionable insights that help traders make informed decisions.""",
         multimodal=True,
         verbose=True,
-        allow_delegation=False
+        allow_delegation=False,
+        llm=llm  # Use explicitly configured LLM
     )
 
 

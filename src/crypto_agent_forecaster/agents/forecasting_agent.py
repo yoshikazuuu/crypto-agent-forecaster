@@ -10,17 +10,17 @@ from ..config import Config
 def create_crypto_forecasting_agent() -> Agent:
     """Create the CryptoForecastingAgent."""
     
-    # Get agent-specific LLM configuration
+    # Get agent-specific LLM configuration but force use of default provider/model
     agent_config = Config.get_agent_llm_config("forecasting")
     
-    # Use agent-specific provider and model instead of global defaults
-    preferred_provider = agent_config.get("preferred_provider", Config.DEFAULT_LLM_PROVIDER)
-    preferred_model = agent_config.get("preferred_model", Config.DEFAULT_LLM_MODEL)
+    # Always use the default provider and model from environment, ignoring agent preferences
+    provider = Config.DEFAULT_LLM_PROVIDER
+    model = Config.DEFAULT_LLM_MODEL
     
-    # Create LLM with configured settings
+    # Create LLM with configured settings using defaults
     llm = LLMFactory.create_llm(
-        provider=preferred_provider,
-        model=preferred_model,
+        provider=provider,
+        model=model,
         temperature=agent_config.get("temperature", 0.3),
         max_tokens=agent_config.get("max_tokens", 4000)
     )

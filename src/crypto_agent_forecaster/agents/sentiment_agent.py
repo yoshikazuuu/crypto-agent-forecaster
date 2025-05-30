@@ -11,20 +11,20 @@ from ..config import Config
 def create_crypto_sentiment_analysis_agent() -> Agent:
     """Create the CryptoSentimentAnalysisAgent with optimized LLM configuration."""
     
-    # Get agent-specific LLM configuration
+    # Get agent-specific LLM configuration but force use of default provider/model
     agent_config = Config.get_agent_llm_config("sentiment")
     
     # Create the tool instance
     fourchan_tool = create_fourchan_tool()
     
-    # Use agent-specific provider and model instead of global defaults
-    preferred_provider = agent_config.get("preferred_provider", Config.DEFAULT_LLM_PROVIDER)
-    preferred_model = agent_config.get("preferred_model", Config.DEFAULT_LLM_MODEL)
+    # Always use the default provider and model from environment, ignoring agent preferences
+    provider = Config.DEFAULT_LLM_PROVIDER
+    model = Config.DEFAULT_LLM_MODEL
     
-    # Create LLM with optimized settings for sentiment analysis
+    # Create LLM with optimized settings for sentiment analysis using defaults
     llm = LLMFactory.create_llm(
-        provider=preferred_provider,
-        model=preferred_model,
+        provider=provider,
+        model=model,
         temperature=agent_config.get("temperature", 0.2),
         max_tokens=agent_config.get("max_tokens", 3000)
     )
