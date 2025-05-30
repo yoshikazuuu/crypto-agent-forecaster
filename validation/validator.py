@@ -255,7 +255,8 @@ class CryptoValidator:
     async def _make_forecast(self, coin: str, horizon: str) -> Optional[ForecastResult]:
         """Make a forecast using the main forecasting tool"""
         try:
-            # Run the main forecasting tool
+            # Run the main forecasting tool from the parent directory
+            parent_dir = Path(__file__).parent.parent
             cmd = ["python", "main.py", "forecast", coin, "--horizon", horizon, "--yes"]
             
             self.logger.info(f"Running forecast command: {' '.join(cmd)}")
@@ -264,7 +265,8 @@ class CryptoValidator:
                 cmd,
                 capture_output=True,
                 text=True,
-                timeout=300  # 5 minute timeout
+                timeout=300,  # 5 minute timeout
+                cwd=parent_dir  # Run from parent directory where main.py is located
             )
             
             if process.returncode != 0:
@@ -296,8 +298,9 @@ class CryptoValidator:
     def _parse_forecast_result(self, coin: str) -> Optional[Dict[str, Any]]:
         """Parse forecast result from the results directory"""
         try:
-            # Look for the most recent results file
-            results_dir = Path("results")
+            # Look for the most recent results file in the parent directory
+            parent_dir = Path(__file__).parent.parent
+            results_dir = parent_dir / "results"
             if not results_dir.exists():
                 return None
             
