@@ -15,6 +15,17 @@ dependencies = [
     "scipy>=1.11.0",
     "plotly>=5.17.0",
     
+    # HTTP requests for API calls
+    "requests>=2.31.0",
+    
+    # CrewAI and related dependencies for tool integration
+    "crewai>=0.121.1",
+    "google-generativeai>=0.8.0",
+    "python-dotenv>=1.1.0",
+    "ta>=0.11.0",
+    "Pillow>=10.0.0",
+    "mplfinance>=0.12.10b0",
+    
     # System monitoring and scheduling
     "psutil>=5.9.0",
     "schedule>=1.2.0",
@@ -41,6 +52,9 @@ crypto-validator = "validation.cli:main"
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["validation"]
 
 [tool.black]
 line-length = 100
