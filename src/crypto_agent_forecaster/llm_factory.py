@@ -228,18 +228,18 @@ class LLMFactory:
         """Get recommended model configurations for different task types."""
         recommendations = {
             "sentiment_analysis": {
-                "provider": "anthropic",
-                "model": "claude-3-5-sonnet-20241022",
+                "provider": "openai",
+                "model": "gpt-4o-mini",
                 "reason": "Excellent at nuanced text interpretation and context understanding"
             },
             "technical_analysis": {
                 "provider": "openai", 
-                "model": "gpt-4o",
+                "model": "gpt-4o-mini",
                 "reason": "Strong analytical capabilities and structured output"
             },
             "multimodal_fusion": {
-                "provider": "google",
-                "model": "gemini-1.5-pro", 
+                "provider": "openai",
+                "model": "gpt-4o-mini", 
                 "reason": "Large context window for complex data synthesis"
             },
             "cost_optimized": {
