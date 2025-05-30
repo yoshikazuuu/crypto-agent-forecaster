@@ -277,8 +277,8 @@ def status():
         if not analytics.results_data:
             console.print("⚠️ No validation results found", style="yellow")
             console.print("\nTo get started, run one of these commands:")
-            console.print("• uv run python cli.py live --duration 6 --coins bitcoin")
-            console.print("• uv run python cli.py backtest --days 30")
+            console.print("• uv run cli.py live --duration 6 --coins bitcoin")
+            console.print("• uv run cli.py backtest --days 30")
             return
         
         # Show summary

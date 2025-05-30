@@ -13,7 +13,7 @@ show_processes() {
     echo "--------------------------------"
     
     # Check for Python validation processes
-    local validation_processes=$(ps aux | grep "python cli.py" | grep -v grep)
+    local validation_processes=$(ps aux | grep "uv run cli.py" | grep -v grep)
     
     if [[ -n "$validation_processes" ]]; then
         echo "$validation_processes"
@@ -87,8 +87,8 @@ show_results() {
         
         echo ""
         echo "💡 Commands:"
-        echo "   python cli.py status   # Detailed status"
-        echo "   python cli.py report   # Generate HTML report"
+        echo "   uv run cli.py status   # Detailed status"
+        echo "   uv run cli.py report   # Generate HTML report"
     else
         echo "❌ No validation results found"
     fi
@@ -133,7 +133,7 @@ kill_all_processes() {
     echo ""
     
     # Kill Python validation processes
-    local pids=$(ps aux | grep "python cli.py" | grep -v grep | awk '{print $2}')
+    local pids=$(ps aux | grep "uv run cli.py" | grep -v grep | awk '{print $2}')
     
     if [[ -n "$pids" ]]; then
         for pid in $pids; do

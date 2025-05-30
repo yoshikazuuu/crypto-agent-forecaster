@@ -44,20 +44,20 @@ run_in_screen() {
     case $test_type in
         "quick-backtest")
             echo "🚀 Running Quick Backtest (7 days, Bitcoin + Ethereum)"
-            screen -dmS "$session_name" bash -c "cd $(pwd) && python cli.py backtest --days 7 -c bitcoin -c ethereum; echo 'Test completed. Press any key to exit.'; read"
+            screen -dmS "$session_name" bash -c "cd $(pwd) && uv run cli.py backtest --days 7 -c bitcoin -c ethereum; echo 'Test completed. Press any key to exit.'; read"
             ;;
         "full-backtest")
             echo "🚀 Running Full Backtest (30 days, all 10 coins)"
-            screen -dmS "$session_name" bash -c "cd $(pwd) && python cli.py full-backtest --days 30; echo 'Test completed. Press any key to exit.'; read"
+            screen -dmS "$session_name" bash -c "cd $(pwd) && uv run cli.py full-backtest --days 30; echo 'Test completed. Press any key to exit.'; read"
             ;;
         "full-test")
             echo "🚀 Running Full Live Test (6 hours, all 10 coins)"
-            screen -dmS "$session_name" bash -c "cd $(pwd) && python cli.py full-test; echo 'Test completed. Press any key to exit.'; read"
+            screen -dmS "$session_name" bash -c "cd $(pwd) && uv run cli.py full-test; echo 'Test completed. Press any key to exit.'; read"
             ;;
         "custom")
             echo "🚀 Enter your custom command:"
-            read -p "Command: python cli.py " custom_cmd
-            screen -dmS "$session_name" bash -c "cd $(pwd) && python cli.py $custom_cmd; echo 'Test completed. Press any key to exit.'; read"
+            read -p "Command: uv run cli.py " custom_cmd
+            screen -dmS "$session_name" bash -c "cd $(pwd) && uv run cli.py $custom_cmd; echo 'Test completed. Press any key to exit.'; read"
             ;;
         *)
             echo "❌ Unknown test type: $test_type"
@@ -95,20 +95,20 @@ run_with_nohup() {
     case $test_type in
         "quick-backtest")
             echo "🚀 Starting Quick Backtest..."
-            nohup python cli.py backtest --days 7 -c bitcoin -c ethereum > "$log_file" 2>&1 &
+            nohup uv run cli.py backtest --days 7 -c bitcoin -c ethereum > "$log_file" 2>&1 &
             ;;
         "full-backtest")
             echo "🚀 Starting Full Backtest..."
-            nohup python cli.py full-backtest --days 30 > "$log_file" 2>&1 &
+            nohup uv run cli.py full-backtest --days 30 > "$log_file" 2>&1 &
             ;;
         "full-test")
             echo "🚀 Starting Full Live Test..."
-            nohup python cli.py full-test > "$log_file" 2>&1 &
+            nohup uv run cli.py full-test > "$log_file" 2>&1 &
             ;;
         "custom")
             echo "🚀 Enter your custom command:"
-            read -p "Command: python cli.py " custom_cmd
-            nohup python cli.py $custom_cmd > "$log_file" 2>&1 &
+            read -p "Command: uv run cli.py " custom_cmd
+            nohup uv run cli.py $custom_cmd > "$log_file" 2>&1 &
             ;;
         *)
             echo "❌ Unknown test type: $test_type"
@@ -140,7 +140,7 @@ create_service() {
     # This would create a proper systemd service
     echo "📋 Service creation not implemented in this demo"
     echo "💡 For production, consider using the VPS deployment:"
-    echo "   python cli.py deploy --install-deps --create-service"
+    echo "   uv run cli.py deploy --install-deps --create-service"
 }
 
 # Main execution
