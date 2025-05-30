@@ -22,6 +22,7 @@ warnings.filterwarnings('ignore')
 from ..config import Config
 from .coingecko_tool import coingecko_tool
 
+
 # Global variable to store chart data for multimodal access
 _current_chart_data = None
 _current_chart_path = None
@@ -98,7 +99,7 @@ def clear_chart_data():
 
 
 @tool("technical_analysis_tool")
-def technical_analysis_tool(crypto_name: str, forecast_horizon: str = "24 hours", days: Optional[int] = None) -> str:
+def technical_analysis_tool(crypto_name: str, forecast_horizon: str = "24 hours") -> str:
     """
     Performs comprehensive technical analysis on cryptocurrency data by fetching fresh OHLCV data 
     and generating visual charts optimized for the forecast horizon.
@@ -106,7 +107,6 @@ def technical_analysis_tool(crypto_name: str, forecast_horizon: str = "24 hours"
     Args:
         crypto_name: Name or symbol of the cryptocurrency to analyze (e.g., 'bitcoin', 'ethereum', 'BTC')
         forecast_horizon: The forecast time horizon to optimize analysis for (e.g., "1 hour", "24 hours", "3 days", "1 week")
-        days: Number of days of historical data to fetch for analysis (optional, will be optimized for forecast_horizon if not provided)
     
     Returns:
         Textual summary with chart generation status and analysis insights
@@ -116,9 +116,8 @@ def technical_analysis_tool(crypto_name: str, forecast_horizon: str = "24 hours"
     clear_chart_data()
     
     try:
-        # Optimize data range based on forecast horizon if days not provided
-        if days is None:
-            days = _get_optimal_days_for_horizon(forecast_horizon)
+        # Automatically optimize data range based on forecast horizon
+        days = _get_optimal_days_for_horizon(forecast_horizon)
         
         print(f"🔍 Fetching {days} days of OHLCV data for {crypto_name} (optimized for {forecast_horizon} forecast)...")
         
@@ -485,7 +484,7 @@ def _create_technical_chart(df: pd.DataFrame, indicators: Dict[str, Any], crypto
         
         # Create professional TradingView-style configuration with proper candle sizing
         custom_style = mpf.make_mpf_style(
-            base_mpf_style='charles',
+            base_mpf_style='binance',
             marketcolors=mpf.make_marketcolors(
                 up='#26A69A',      # Green for bullish candles
                 down='#EF5350',    # Red for bearish candles
@@ -673,7 +672,9 @@ def _create_technical_chart(df: pd.DataFrame, indicators: Dict[str, Any], crypto
             'returnfig': True,
             'tight_layout': True,
             'show_nontrading': False,
-            'scale_padding': {'left': 0.3, 'top': 0.8, 'right': 1.0, 'bottom': 0.3}  # More space for legend
+            'scale_padding': {'left': 0.3, 'top': 0.8, 'right': 1.0, 'bottom': 0.3},  # More space for legend
+            'width': 0.7,           # overall width (0 < width ≤ 1)
+            'candle_linewidth': 1.0 # edge line width
         }
         
         if apd:
@@ -1427,7 +1428,7 @@ def _create_enhanced_technical_chart(df: pd.DataFrame, indicators: Dict[str, Any
         
         # Create professional TradingView-style configuration with larger fonts
         custom_style = mpf.make_mpf_style(
-            base_mpf_style='charles',
+            base_mpf_style='binance',
             marketcolors=mpf.make_marketcolors(
                 up='#26A69A',      # Green for bullish candles
                 down='#EF5350',    # Red for bearish candles
@@ -1569,7 +1570,9 @@ def _create_enhanced_technical_chart(df: pd.DataFrame, indicators: Dict[str, Any
             'figsize': figsize,
             'returnfig': True,
             'tight_layout': True,
-            'show_nontrading': False
+            'show_nontrading': False,
+            'width': 0.7,           # overall width (0 < width ≤ 1)
+            'candle_linewidth': 1.0 # edge line width
         }
         
         if apd:
@@ -1739,9 +1742,9 @@ class TechnicalAnalysisTool:
         """
         self.ta_config = Config.TA_INDICATORS
     
-    def _run(self, crypto_name: str, forecast_horizon: str = "24 hours", days: Optional[int] = None) -> str:
+    def _run(self, crypto_name: str, forecast_horizon: str = "24 hours") -> str:
         """Legacy interface for the tool with proper parameter handling."""
-        return technical_analysis_tool.func(crypto_name, forecast_horizon, days)
+        return technical_analysis_tool.func(crypto_name, forecast_horizon)
 
 
 def create_technical_analysis_tool():
