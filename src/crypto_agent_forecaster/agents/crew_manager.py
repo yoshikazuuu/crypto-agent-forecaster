@@ -4,6 +4,7 @@ Crew Manager for orchestrating the CryptoAgentForecaster system.
 
 import io
 import contextlib
+import sys
 from typing import Dict, Any, Optional, List
 from crewai import Crew, Task
 from rich.console import Console
@@ -16,8 +17,8 @@ from .sentiment_agent import create_crypto_sentiment_analysis_agent
 from .technical_agent import create_technical_analysis_agent
 from .forecasting_agent import create_crypto_forecasting_agent
 from ..prompts import get_task_prompts
-from ..utils import LogCapture, save_run_results, sanitize_for_logging
-from ..tools.technical_analysis_tool import get_current_chart_data, clear_chart_data
+from ..utils import LogCapture, save_run_results, sanitize_for_logging, create_run_directory
+from ..tools.technical_analysis_tool import get_current_chart_data, clear_chart_data, set_results_directory, save_chart_to_results
 
 
 class CryptoForecastingCrew:
@@ -165,23 +166,20 @@ class CryptoForecastingCrew:
         if self.verbose:
             self.console.print(f"🔧 Verbose mode enabled - detailed execution logs will be shown")
         
+        # Create results directory early and set it for technical analysis tool
+        from datetime import datetime
+        results_dir = create_run_directory(crypto_name, datetime.now())
+        set_results_directory(str(results_dir))
+        
         # Reset charts storage and capture current market data for this run
         self.current_run_charts = {}
         self.current_run_market_data = {}
         self._capture_current_market_data(crypto_name)
         
-        # Capture logs during execution
+        # Capture logs for this forecast run
         with LogCapture() as log_capture:
             try:
-                # Log start of process
-                log_capture.log(f"Starting forecast for {crypto_name} with horizon {forecast_horizon}")
-                log_capture.log(f"Verbose mode: {self.verbose}")
-                
-                # Log agents and tools being used
-                for agent_name, info in self.agents_info.items():
-                    log_capture.log(f"Agent: {agent_name} - Tools: {', '.join(info['tools'])}")
-                
-                # Create tasks
+                # Create tasks for this specific forecast
                 tasks = self.create_tasks(crypto_name, forecast_horizon)
                 
                 if self.verbose:
@@ -196,28 +194,78 @@ class CryptoForecastingCrew:
                         self.forecasting_agent
                     ],
                     tasks=tasks,
-                    verbose=self.verbose,  # Now configurable based on verbose flag
+                    verbose=True,  # Always enable crew verbose for complete logging
                     memory=False
                 )
                 
-                # Run the crew
+                # Run the crew with logging strategy based on user preference
                 self.console.print("\n🚀 Executing forecasting workflow...")
                 log_capture.log("Executing forecasting workflow...")
                 
                 if self.verbose:
-                    # In verbose mode, don't capture stdout so users can see crew outputs
-                    result = crew.kickoff()
-                else:
-                    # In non-verbose mode, capture stdout to log crew outputs
-                    captured_output = io.StringIO()
-                    with contextlib.redirect_stdout(captured_output):
-                        result = crew.kickoff()
+                    # In verbose mode, show everything to user and capture to logs
+                    self.console.print("🔧 Verbose mode: Showing real-time crew execution...")
                     
-                    # Log the sanitized crew output
-                    crew_output = captured_output.getvalue()
-                    if crew_output:
-                        sanitized_output = sanitize_for_logging(crew_output)
-                        log_capture.log(f"Crew execution output: {sanitized_output}")
+                    # Capture crew output to logs while still showing to user
+                    original_stdout = sys.stdout
+                    captured_output = io.StringIO()
+                    
+                    class TeeOutput:
+                        def __init__(self, file1, file2):
+                            self.file1 = file1
+                            self.file2 = file2
+                        
+                        def write(self, data):
+                            self.file1.write(data)
+                            self.file2.write(data)
+                        
+                        def flush(self):
+                            self.file1.flush() 
+                            self.file2.flush()
+                    
+                    try:
+                        # Tee output to both console and capture buffer
+                        tee = TeeOutput(original_stdout, captured_output)
+                        sys.stdout = tee
+                        result = crew.kickoff()
+                        sys.stdout = original_stdout
+                        
+                        # Log all crew output for permanent record
+                        crew_output = captured_output.getvalue()
+                        if crew_output:
+                            sanitized_output = sanitize_for_logging(crew_output)
+                            log_capture.log(f"Crew verbose execution output:\n{sanitized_output}")
+                            
+                    except Exception as capture_error:
+                        sys.stdout = original_stdout
+                        self.console.print(f"⚠️ Logging capture issue: {capture_error}", style="yellow")
+                        # Fall back to normal execution without capture
+                        result = crew.kickoff()
+                        log_capture.log("Crew execution completed (capture failed)")
+                        
+                else:
+                    # In non-verbose mode, capture crew output but don't show to user
+                    self.console.print("🔇 Non-verbose mode: Capturing crew logs without terminal output...")
+                    
+                    try:
+                        captured_output = io.StringIO()
+                        with contextlib.redirect_stdout(captured_output):
+                            result = crew.kickoff()
+                        
+                        # Always log the complete crew output for record keeping
+                        crew_output = captured_output.getvalue()
+                        if crew_output:
+                            sanitized_output = sanitize_for_logging(crew_output)
+                            log_capture.log(f"Crew execution output (non-verbose mode):\n{sanitized_output}")
+                            self.console.print("✅ Crew execution completed (logs captured)", style="green")
+                        else:
+                            log_capture.log("Crew execution completed (no output captured)")
+                            
+                    except Exception as capture_error:
+                        # If stdout capture fails (e.g., due to chart generation), fall back to normal execution
+                        self.console.print(f"⚠️ Stdout capture failed, running without capture for compatibility: {capture_error}", style="yellow")
+                        result = crew.kickoff()
+                        log_capture.log(f"Crew execution completed with capture failure: {capture_error}")
                 
                 # Parse and format results
                 formatted_result = self._format_results(result, crypto_name, forecast_horizon)
@@ -230,22 +278,23 @@ class CryptoForecastingCrew:
                     'verbose_mode': self.verbose
                 }
                 
-                # Save results to dedicated folder
-                saved_path = save_run_results(
+                # Save results to dedicated folder (use existing directory)
+                save_run_results(
                     results=formatted_result,
                     charts=self.current_run_charts,
                     logs=log_capture.get_logs(),
-                    verbose=self.verbose
+                    verbose=self.verbose,
+                    existing_dir=results_dir  # Use the pre-created directory
                 )
                 
                 # Add save path to results
-                formatted_result['saved_to'] = str(saved_path)
+                formatted_result['saved_to'] = str(results_dir)
                 
                 # Display results
                 self._display_results(formatted_result)
                 
                 # Notify about saved results
-                self.console.print(f"\n💾 Complete results saved to: {saved_path}", style="bold green")
+                self.console.print(f"\n💾 Complete results saved to: {results_dir}", style="bold green")
                 
                 return formatted_result
                 
@@ -268,13 +317,14 @@ class CryptoForecastingCrew:
                     }
                 }
                 
-                saved_path = save_run_results(
+                save_run_results(
                     results=error_result,
                     charts=self.current_run_charts,
                     logs=log_capture.get_logs(),
-                    verbose=self.verbose
+                    verbose=self.verbose,
+                    existing_dir=results_dir  # Use the pre-created directory
                 )
-                error_result['saved_to'] = str(saved_path)
+                error_result['saved_to'] = str(results_dir)
                 
                 return error_result
     
@@ -283,25 +333,45 @@ class CryptoForecastingCrew:
         try:
             from ..tools.coingecko_tool import coingecko_tool
             import json
+            import time
             
+            print(f"🔍 Fetching fresh market data for {crypto_name}...")
             
             # Get current price data first for comparison
             current_price_result = coingecko_tool.func(f"{crypto_name} current price")
             current_price_data = json.loads(current_price_result)
             
+            # Add small delay to ensure we don't get cached data
+            time.sleep(1)
             
-            # Get OHLCV data for consistency
-            ohlcv_result = coingecko_tool.func(f"{crypto_name} ohlcv 7 days")
+            # Get OHLCV data for consistency - using a shorter period for fresher data
+            ohlcv_result = coingecko_tool.func(f"{crypto_name} ohlcv 3 days")
             ohlcv_data = json.loads(ohlcv_result)
             
             if "error" not in current_price_data and "current_price" in current_price_data:
                 api_current_price = current_price_data["current_price"]
                 
-                # SANITY CHECK: Bitcoin should be in reasonable range
-                if crypto_name.lower() == "bitcoin" and (api_current_price < 20000 or api_current_price > 200000):
-                    print(f"⚠️ WARNING: Bitcoin price ${api_current_price:,} seems unrealistic!")
+                # ENHANCED SANITY CHECKS for different cryptocurrencies
+                is_price_reasonable = True
+                if crypto_name.lower() == "bitcoin":
+                    if api_current_price < 20000 or api_current_price > 200000:
+                        print(f"⚠️ WARNING: Bitcoin price ${api_current_price:,} seems unrealistic!")
+                        is_price_reasonable = False
+                elif crypto_name.lower() in ["ethereum", "eth"]:
+                    if api_current_price < 500 or api_current_price > 20000:
+                        print(f"⚠️ WARNING: Ethereum price ${api_current_price:,} seems unrealistic!")
+                        is_price_reasonable = False
+                elif api_current_price <= 0:
+                    print(f"⚠️ WARNING: Invalid price ${api_current_price} for {crypto_name}")
+                    is_price_reasonable = False
+                
+                if is_price_reasonable:
+                    print(f"✅ Current price ${api_current_price:,.2f} seems reasonable for {crypto_name}")
                 else:
-                    print(f"✅ Current price ${api_current_price:,} seems reasonable")
+                    print(f"🚨 Price validation failed for {crypto_name} - may affect forecast quality")
+            else:
+                print(f"❌ Failed to fetch current price data for {crypto_name}")
+                return
             
             if "error" not in ohlcv_data and "ohlcv_data" in ohlcv_data:
                 # Extract current price from the most recent OHLCV data
@@ -310,6 +380,7 @@ class CryptoForecastingCrew:
                     latest_candle = recent_data[-1]  # Most recent candle
                     ohlcv_current_price = latest_candle["close"]
                     
+                    print(f"📊 Data timestamps - Latest OHLCV: {latest_candle.get('timestamp', 'Unknown')}")
                     
                     # Compare API current price vs OHLCV close price
                     if "error" not in current_price_data and "current_price" in current_price_data:
@@ -320,13 +391,22 @@ class CryptoForecastingCrew:
                         print(f"📊 Price Comparison: API ${api_current_price:,.2f} vs OHLCV ${ohlcv_current_price:,.2f}")
                         print(f"📊 Price Difference: ${price_diff:,.2f} ({price_diff_percent:.2f}%)")
                         
-                        if price_diff_percent > 5:
-                            print(f"⚠️ WARNING: Significant price difference ({price_diff_percent:.2f}%) detected!")
-                            # Use API price as it's more current
-                            final_price = api_current_price
-                            print(f"🔧 Using API current price: ${final_price:,.2f}")
+                        # Be more strict about price differences to catch stale data
+                        if price_diff_percent > 2:  # More than 2% difference is suspicious
+                            print(f"⚠️ WARNING: Price difference ({price_diff_percent:.2f}%) detected!")
+                            
+                            # For small differences (2-10%), use API price but warn
+                            if price_diff_percent <= 10:
+                                final_price = api_current_price
+                                print(f"🔧 Using more current API price: ${final_price:,.2f}")
+                            else:
+                                # For large differences (>10%), this could indicate stale OHLCV data
+                                print(f"🚨 Large price difference detected! OHLCV data may be stale.")
+                                print(f"🚨 This could cause analysis inconsistencies.")
+                                final_price = api_current_price
+                                print(f"🔧 Using API price, but flagging for validation: ${final_price:,.2f}")
                         else:
-                            print(f"✅ Price difference is acceptable, using OHLCV close price")
+                            print(f"✅ Price difference is minimal, using OHLCV close price")
                             final_price = ohlcv_current_price
                     else:
                         final_price = ohlcv_current_price
@@ -344,30 +424,65 @@ class CryptoForecastingCrew:
                         if past_price > 0:
                             price_change_24h = ((current_price - past_price) / past_price) * 100
                     
-                    # Use the validated price
+                    # Store comprehensive market data with validation flags
                     self.current_run_market_data = {
                         "current_price": final_price,
                         "volume_24h": latest_candle["volume"],
                         "timestamp": latest_candle["timestamp"],
                         "cryptocurrency": crypto_name,
                         "price_change_24h": price_change_24h,
-                        "data_source": "ohlcv_validated",
+                        "data_source": "validated_mixed",
+                        "data_quality": {
+                            "api_ohlcv_diff_percent": price_diff_percent if 'price_diff_percent' in locals() else 0,
+                            "is_price_reasonable": is_price_reasonable,
+                            "data_freshness": "fresh" if price_diff_percent < 2 else "potentially_stale",
+                            "ohlcv_data_points": len(recent_data)
+                        },
                         "price_validation": {
                             "api_price": current_price_data.get("current_price") if "error" not in current_price_data else None,
                             "ohlcv_price": ohlcv_current_price,
-                            "price_diff_percent": price_diff_percent if 'price_diff_percent' in locals() else 0
+                            "price_diff_percent": price_diff_percent if 'price_diff_percent' in locals() else 0,
+                            "validation_timestamp": time.time()
                         }
                     }
-                    print(f"✅ Current market data captured: ${self.current_run_market_data['current_price']:,.2f} ({price_change_24h:+.2f}% 24h)")
+                    
+                    data_quality = self.current_run_market_data["data_quality"]["data_freshness"]
+                    quality_icon = "✅" if data_quality == "fresh" else "⚠️"
+                    
+                    print(f"{quality_icon} Market data captured: ${self.current_run_market_data['current_price']:,.2f} ({price_change_24h:+.2f}% 24h)")
+                    print(f"📊 Data quality: {data_quality}")
+                    
+                    # If data quality is poor, warn about potential issues
+                    if data_quality == "potentially_stale":
+                        print(f"⚠️ Data quality warning: Price differences detected. Analysis may be affected.")
+                        print(f"⚠️ Consider re-running the forecast if results seem inconsistent.")
+                    
                 else:
                     print(f"⚠️ No OHLCV data available")
+                    self.current_run_market_data = {}
             else:
-                print(f"⚠️ Could not capture market data: {ohlcv_data.get('error', 'Unknown error')}")
+                print(f"⚠️ Could not capture OHLCV data: {ohlcv_data.get('error', 'Unknown error')}")
+                # Store basic data from API only
+                if "error" not in current_price_data and "current_price" in current_price_data:
+                    self.current_run_market_data = {
+                        "current_price": current_price_data["current_price"],
+                        "cryptocurrency": crypto_name,
+                        "data_source": "api_only",
+                        "timestamp": time.time(),
+                        "data_quality": {
+                            "data_freshness": "api_only",
+                            "ohlcv_available": False
+                        }
+                    }
+                    print(f"⚠️ Using API-only data: ${current_price_data['current_price']:,.2f}")
+                else:
+                    self.current_run_market_data = {}
                 
         except Exception as e:
             print(f"⚠️ Error capturing current market data: {str(e)}")
             import traceback
             traceback.print_exc()
+            self.current_run_market_data = {}
     
     def _format_results(self, raw_result: Any, crypto_name: str, forecast_horizon: str) -> Dict[str, Any]:
         """Format the raw crew results into a structured output."""
@@ -380,53 +495,152 @@ class CryptoForecastingCrew:
         
         # Validate price consistency between captured data and forecast text
         captured_price = None
+        price_consistency_error = False
+        
         if self.current_run_market_data and "current_price" in self.current_run_market_data:
             captured_price = self.current_run_market_data["current_price"]
-            print(f"✅ Data consistency: Using OHLCV-based price (${captured_price:,.2f}) for all analysis")
+            print(f"✅ Market data captured price: ${captured_price:,.2f}")
         
         # Check for price mentions in forecast text that might be inconsistent
         import re
         text_price_matches = re.findall(r'\$([0-9,]+\.?[0-9]*)', final_forecast)
+        
         if text_price_matches and captured_price:
             inconsistent_prices = []
+            analysis_prices = []
+            
             for price_str in text_price_matches:
                 try:
                     text_price = float(price_str.replace(',', ''))
+                    # Skip very small values (likely percentages or other data)
+                    if text_price < 1:
+                        continue
+                    
                     price_diff = abs(text_price - captured_price)
                     price_diff_percent = (price_diff / captured_price) * 100
                     
-                    # Warn if there's a significant price discrepancy (more than 5%)
-                    if price_diff_percent > 5:
+                    # Collect prices that seem like they could be current prices (within reasonable range)
+                    if crypto_name.lower() == "bitcoin":
+                        # For Bitcoin, current price should be between 20k and 200k
+                        if 20000 <= text_price <= 200000:
+                            analysis_prices.append((text_price, price_diff_percent))
+                    else:
+                        # For other cryptos, be more flexible but check for major discrepancies
+                        if price_diff_percent > 10:  # More than 10% difference
+                            analysis_prices.append((text_price, price_diff_percent))
+                    
+                    # Flag significant discrepancies (more than 20% for any price)
+                    if price_diff_percent > 20:
                         inconsistent_prices.append((text_price, price_diff_percent))
+                        
                 except (ValueError, ZeroDivisionError):
                     continue
             
-            if inconsistent_prices:
-                print(f"⚠️ Found {len(inconsistent_prices)} potentially stale price(s) in forecast text - OHLCV price (${captured_price:,.2f}) will be used for accuracy")
+            # Detect if analysis was done with stale/wrong price data
+            major_inconsistencies = [p for p in inconsistent_prices if p[1] > 50]  # More than 50% difference
+            
+            if major_inconsistencies:
+                print(f"🚨 CRITICAL ERROR: Major price inconsistency detected!")
+                print(f"🚨 Analysis appears to be based on price ~${major_inconsistencies[0][0]:,.0f}")
+                print(f"🚨 But current market price is ${captured_price:,.2f}")
+                print(f"🚨 Difference: {major_inconsistencies[0][1]:.1f}%")
+                
+                # This forecast is unreliable - mark it as an error
+                price_consistency_error = True
+                
+                error_explanation = f"""
+🚨 **FORECAST INVALIDATED DUE TO PRICE INCONSISTENCY** 🚨
+
+**Problem Detected:**
+- Analysis was performed using price: ~${major_inconsistencies[0][0]:,.0f}
+- Current market price: ${captured_price:,.2f}
+- Price difference: {major_inconsistencies[0][1]:.1f}%
+
+**Why This Happened:**
+The AI agents received stale or incorrect price data during analysis, making all targets, 
+stop losses, and recommendations completely invalid for the current market price.
+
+**What This Means:**
+- All price targets are wrong
+- Stop loss levels are wrong  
+- Risk/reward calculations are wrong
+- The forecast should NOT be used for trading
+
+**Recommended Action:**
+Run the forecast again to get fresh data and consistent analysis.
+"""
+                
+            elif inconsistent_prices:
+                print(f"⚠️ Warning: Found {len(inconsistent_prices)} potentially inconsistent price(s)")
+                for price, diff_pct in inconsistent_prices[:3]:  # Show top 3
+                    print(f"   - ${price:,.0f} (differs by {diff_pct:.1f}%)")
+                print(f"✅ Using verified market price: ${captured_price:,.2f}")
             else:
-                print(f"✅ Price consistency verified: All prices align with OHLCV data (${captured_price:,.2f})")
+                print(f"✅ Price consistency verified: All analysis aligns with current market price")
         
-        # Try to parse forecast components
-        forecast_data = {
-            "crypto_name": crypto_name,
-            "forecast_horizon": forecast_horizon,
-            "forecast": self._clean_forecast_text(final_forecast),  # Clean base64 from display text
-            "direction": self._extract_direction(final_forecast),
-            "confidence": self._extract_confidence(final_forecast),
-            "current_price": self._extract_current_price(final_forecast),
-            "targets": self._extract_targets(final_forecast),
-            "stop_loss": self._extract_stop_loss(final_forecast),
-            "take_profits": self._extract_take_profits(final_forecast),
-            "risk_reward_ratio": self._extract_risk_reward_ratio(final_forecast),
-            "position_size": self._extract_position_size(final_forecast),
-            "time_horizon": self._extract_time_horizon(final_forecast),
-            "key_catalysts": self._extract_key_catalysts(final_forecast),
-            "risk_factors": self._extract_risk_factors(final_forecast),
-            "explanation": self._extract_explanation(final_forecast),
-            "timestamp": self._get_timestamp(),
-            "charts_generated": len(self.current_run_charts) > 0,
-            "charts_info": charts_info
-        }
+        # Extract forecast components with error handling for price consistency
+        if price_consistency_error:
+            # Return error result instead of invalid forecast
+            forecast_data = {
+                "crypto_name": crypto_name,
+                "forecast_horizon": forecast_horizon,
+                "error": "Price consistency validation failed",
+                "error_details": {
+                    "analysis_price": major_inconsistencies[0][0] if major_inconsistencies else "Unknown",
+                    "current_market_price": captured_price,
+                    "price_difference_percent": major_inconsistencies[0][1] if major_inconsistencies else 0,
+                    "reason": "Analysis based on stale/incorrect price data"
+                },
+                "forecast": error_explanation,
+                "direction": "ERROR",
+                "confidence": "INVALID",
+                "current_price": f"${captured_price:,.2f}" if captured_price else "Unknown",
+                "targets": {"error": "Invalid due to price inconsistency"},
+                "stop_loss": "Invalid due to price inconsistency",
+                "take_profits": {"error": "Invalid due to price inconsistency"},
+                "risk_reward_ratio": "Invalid",
+                "position_size": "Do not trade",
+                "time_horizon": forecast_horizon,
+                "key_catalysts": ["Price data inconsistency detected"],
+                "risk_factors": ["Analysis based on incorrect price data", "All recommendations are invalid"],
+                "explanation": error_explanation,
+                "timestamp": self._get_timestamp(),
+                "charts_generated": len(self.current_run_charts) > 0,
+                "charts_info": charts_info,
+                "price_validation": {
+                    "status": "FAILED",
+                    "captured_price": captured_price,
+                    "analysis_prices": analysis_prices,
+                    "major_inconsistencies": major_inconsistencies
+                }
+            }
+        else:
+            # Normal processing for consistent data
+            forecast_data = {
+                "crypto_name": crypto_name,
+                "forecast_horizon": forecast_horizon,
+                "forecast": self._clean_forecast_text(final_forecast),
+                "direction": self._extract_direction(final_forecast),
+                "confidence": self._extract_confidence(final_forecast),
+                "current_price": self._extract_current_price(final_forecast),
+                "targets": self._extract_targets(final_forecast),
+                "stop_loss": self._extract_stop_loss(final_forecast),
+                "take_profits": self._extract_take_profits(final_forecast),
+                "risk_reward_ratio": self._extract_risk_reward_ratio(final_forecast),
+                "position_size": self._extract_position_size(final_forecast),
+                "time_horizon": self._extract_time_horizon(final_forecast),
+                "key_catalysts": self._extract_key_catalysts(final_forecast),
+                "risk_factors": self._extract_risk_factors(final_forecast),
+                "explanation": self._extract_explanation(final_forecast),
+                "timestamp": self._get_timestamp(),
+                "charts_generated": len(self.current_run_charts) > 0,
+                "charts_info": charts_info,
+                "price_validation": {
+                    "status": "PASSED",
+                    "captured_price": captured_price,
+                    "inconsistencies_found": len(inconsistent_prices) if inconsistent_prices else 0
+                }
+            }
         
         return forecast_data
     
@@ -438,11 +652,16 @@ class CryptoForecastingCrew:
         chart_data = get_current_chart_data()
         if chart_data:
             chart_name = "technical_analysis_chart"
-            charts_info[chart_name] = "Technical Analysis Chart"
+            charts_info[chart_name] = "Enhanced Technical Analysis Chart with Pattern Annotations"
             
-            # Store the chart data for saving
+            # Store the chart data for saving (base64)
             self.current_run_charts[chart_name] = chart_data
             print(f"✅ Chart data captured: {len(chart_data)} characters")
+            
+            # Save the chart file to results directory
+            saved_chart_path = save_chart_to_results(chart_name)
+            if saved_chart_path:
+                charts_info[f"{chart_name}_file"] = saved_chart_path
             
             # Clear the global chart data
             clear_chart_data()

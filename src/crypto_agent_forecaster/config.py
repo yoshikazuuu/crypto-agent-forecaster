@@ -89,6 +89,7 @@ class Config:
         "professional_colors": {             # Professional color scheme matching TradingView
             "ema_9": "#00D4AA",              # Cyan
             "ema_12": "#00CED1",             # Light cyan  
+            "ema_21": "#20B2AA",             # Light sea green
             "sma_20": "#FFD700",             # Gold
             "ema_26": "#FF8C00",             # Orange
             "sma_50": "#DA70D6",             # Purple
@@ -104,7 +105,11 @@ class Config:
             "macd_histogram_negative": "#EF4444", # Red
             "volume_bullish": "#10B981",     # Green
             "volume_bearish": "#EF4444",     # Red
-            "volume_sma": "#FFD700"          # Gold
+            "volume_sma": "#FFD700",         # Gold
+            "pattern_annotation_bg": "#2A2E39",    # Dark annotation background
+            "pattern_annotation_border": "#363A45", # Annotation border
+            "text_primary": "#D1D4DC",       # Primary text color
+            "text_secondary": "#9CA3AF"      # Secondary text color
         }
     }
     

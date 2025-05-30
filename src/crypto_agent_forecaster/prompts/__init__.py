@@ -67,35 +67,40 @@ def get_task_prompts():
         Perform comprehensive technical analysis on {crypto_name} for the {forecast_horizon} forecast.
         
         Your task:
-        1. Use the technical_analysis_tool directly with the cryptocurrency name:
-           - The tool will automatically fetch fresh OHLCV data internally
-           - It will fetch the optimal amount of historical data for analysis
-           - Specify the number of days for the analysis if needed (default is 30 days)
+        1. Use the technical_analysis_tool with both cryptocurrency name AND forecast horizon:
+           - The tool will automatically optimize data fetching for the forecast horizon
+           - It will select appropriate technical indicators based on the timeframe
+           - The chart will be enhanced with larger text and pattern annotations
         
-        2. Process the technical analysis results and create a comprehensive summary that includes:
-           - Key technical indicators (RSI, MACD, Moving Averages, Bollinger Bands) and their signals
-           - Significant candlestick patterns identified
-           - Trend direction and momentum assessment
-           - Critical support and resistance levels
-           - Overall technical outlook (bullish/bearish/neutral)
-           - Chart patterns and their implications
+        2. Process the enhanced technical analysis results and create a comprehensive summary that includes:
+           - Key technical indicators (RSI, MACD, Moving Averages, Bollinger Bands) optimized for {forecast_horizon}
+           - Significant candlestick patterns with horizon-specific context
+           - Trend direction and momentum assessment for the {forecast_horizon} timeframe
+           - Critical support and resistance levels relevant to {forecast_horizon}
+           - Overall technical outlook (bullish/bearish/neutral) with confidence levels
+           - Chart patterns and their implications for {forecast_horizon} trading
         
         CRITICAL: 
-        - Use technical_analysis_tool(crypto_name="{crypto_name}", days=30) or similar
-        - The tool handles all data fetching internally
-        - Focus on ANALYSIS and INSIGHTS, not data replication
-        - Provide a clear, actionable technical summary
+        - Use technical_analysis_tool(crypto_name="{crypto_name}", forecast_horizon="{forecast_horizon}")
+        - The enhanced tool automatically optimizes data range and indicator selection
+        - Focus on ANALYSIS and INSIGHTS specific to the {forecast_horizon} timeframe
+        - Provide clear, actionable technical summary with larger, more readable charts
         - Include specific price levels and percentages where relevant
         
         Example tool usage:
-        technical_analysis_tool(crypto_name="{crypto_name}", days=30)
+        technical_analysis_tool(crypto_name="{crypto_name}", forecast_horizon="{forecast_horizon}")
         
-        Your response should focus on what the technical indicators are telling us about future price movement, with specific actionable insights for the {forecast_horizon} timeframe.
+        Your response should focus on what the technical indicators are telling us about future price movement, with specific actionable insights for the {forecast_horizon} timeframe. The enhanced charts will have larger text for better AI analysis and pattern annotations for context.
         """,
         
         "forecasting_task": """
         Generate the final comprehensive {forecast_horizon} forecast and trading strategy for {crypto_name} by integrating sentiment and technical analysis.
         
+        CRITICAL PRICE CONSISTENCY REQUIREMENTS:
+        🚨 You MUST use the CURRENT MARKET PRICE throughout your entire analysis. 
+        🚨 All targets, stop losses, and analysis must be based on the CURRENT price, not outdated data.
+        🚨 If you notice any price discrepancies in the data, FLAG them immediately.
+
         Your task:
         1. Review the sentiment analysis findings, paying attention to:
            - Overall sentiment scores
@@ -109,48 +114,70 @@ def get_task_prompts():
            - Trend and momentum assessment
            - Support and resistance levels
            - Overall technical outlook
+           - **MOST IMPORTANTLY: Current market price used in the analysis**
         
-        3. Synthesize the information considering:
+        3. PRICE VALIDATION STEP:
+           - Identify the current market price from all sources
+           - Ensure all your targets and analysis use this SAME current price
+           - If you see conflicting prices (e.g., analysis mentioning $27,000 when current price is $105,000), STOP and report the inconsistency
+           - Do NOT proceed with analysis if there are major price discrepancies (>10%)
+        
+        4. Synthesize the information considering:
            - Agreement or conflict between sentiment and technical signals
            - Reliability and strength of each signal type
            - Market volatility and uncertainty factors
            - Appropriate confidence levels
+           - **Price consistency across all data sources**
         
-        4. Provide your final comprehensive forecast in this EXACT format:
+        5. Provide your final comprehensive forecast in this EXACT format:
         
         **Direction**: [UP/DOWN/NEUTRAL]
         **Confidence level**: [HIGH/MEDIUM/LOW]
-        **Current Price**: $[price]
+        **Current Price**: $[price] (⚠️ MUST be the actual current market price)
         **Target Price(s)**:
-        - **Primary Target**: $[price] (Probability: [%]%) - [reasoning]
-        - **Secondary Target**: $[price] (Probability: [%]%) - [reasoning]
+        - **Primary Target**: $[price] (Probability: [%]%) - [reasoning based on CURRENT price]
+        - **Secondary Target**: $[price] (Probability: [%]%) - [reasoning based on CURRENT price]
         
-        **Stop Loss Level**: $[price] - [reasoning]
+        **Stop Loss Level**: $[price] - [reasoning based on CURRENT price]
         **Take Profit Level(s)**:
-        - **Take Profit 1**: $[price] - [reasoning]
-        - **Take Profit 2**: $[price] - [reasoning]
+        - **Take Profit 1**: $[price] - [reasoning based on CURRENT price]
+        - **Take Profit 2**: $[price] - [reasoning based on CURRENT price]
         
-        **Risk-Reward Ratio**: [ratio] ([calculation])
+        **Risk-Reward Ratio**: [ratio] ([calculation based on CURRENT price])
         **Position Size Recommendation**: [percentage]% of portfolio - [reasoning]
         **Time Horizon**: [timeframe] - [reasoning]
         **Key Catalysts**: [list of events/factors]
         **Risk Factors**: [list of risks]
-        **Entry Strategy**: [detailed entry plan]
-        **Exit Strategy**: [detailed exit plan]
+        **Entry Strategy**: [detailed entry plan using CURRENT price]
+        **Exit Strategy**: [detailed exit plan using CURRENT price]
         **Market Context**: [broader market analysis]
         
         **Detailed Analysis & Reasoning**:
-        [Provide comprehensive step-by-step analysis that supports your direction, targets, and risk levels. Explain how you integrated sentiment and technical signals. Be specific about what indicators or sentiment factors led to your conclusion.]
+        [Provide comprehensive step-by-step analysis that supports your direction, targets, and risk levels. 
+        
+        START your analysis by stating: "Current market price verified: $[price]"
+        
+        Explain how you integrated sentiment and technical signals. Be specific about what indicators or sentiment factors led to your conclusion. 
+        
+        ENSURE all price targets make sense relative to the current market price. If the current price is $105,000, targets of $25,000 would be completely unrealistic for any reasonable forecast timeframe.]
         
         IMPORTANT REQUIREMENTS:
         - The **Direction** field MUST match your overall conclusion in the detailed analysis
-        - Use specific price levels, not ranges or vague terms
+        - Use specific price levels based on CURRENT market price, not ranges or vague terms
         - Include probability estimates for targets
         - Provide clear risk management guidelines
         - Your detailed analysis should support and align with your direction choice
         - Be consistent: if you say UP in direction, your analysis should primarily support bullish outlook
         - If conflicted signals, choose NEUTRAL and explain the uncertainty
-        """
+        - **CRITICAL: All prices must be realistic relative to the current market price**
+        
+        PRICE CONSISTENCY WARNING:
+        If you detect that the technical analysis was performed on stale price data (e.g., Bitcoin analyzed at $27,000 when current price is $105,000), immediately STOP and respond with:
+        
+        "🚨 PRICE CONSISTENCY ERROR DETECTED 🚨
+        Analysis cannot proceed due to stale price data. Technical analysis appears to be based on price $[old_price] but current market price is $[current_price]. This creates unreliable forecasts. Please re-run the analysis with fresh data."
+        
+        """,
     }
 
 

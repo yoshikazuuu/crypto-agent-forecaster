@@ -96,7 +96,7 @@ def create_run_directory(crypto_name: str, timestamp: datetime = None) -> Path:
     return run_dir
 
 
-def save_run_results(results: Dict[str, Any], charts: Dict[str, bytes] = None, logs: str = None, verbose: bool = False) -> Path:
+def save_run_results(results: Dict[str, Any], charts: Dict[str, bytes] = None, logs: str = None, verbose: bool = False, existing_dir: Path = None) -> Path:
     """
     Save complete run results including charts and logs to a dedicated folder.
     
@@ -105,14 +105,22 @@ def save_run_results(results: Dict[str, Any], charts: Dict[str, bytes] = None, l
         charts: Dictionary mapping chart names to image bytes
         logs: String containing run logs
         verbose: Whether to include verbose information in README
+        existing_dir: Optional existing directory to use instead of creating new one
         
     Returns:
         Path to the directory where results were saved
     """
-    # Create run directory
-    crypto_name = results.get('crypto_name', 'unknown')
-    timestamp = datetime.fromisoformat(results.get('timestamp', datetime.now().isoformat()))
-    run_dir = create_run_directory(crypto_name, timestamp)
+    # Use existing directory or create new one
+    if existing_dir:
+        run_dir = Path(existing_dir)
+        run_dir.mkdir(parents=True, exist_ok=True)
+        # Extract crypto_name from results for use in README
+        crypto_name = results.get('crypto_name', 'unknown')
+    else:
+        # Create run directory
+        crypto_name = results.get('crypto_name', 'unknown')
+        timestamp = datetime.fromisoformat(results.get('timestamp', datetime.now().isoformat()))
+        run_dir = create_run_directory(crypto_name, timestamp)
     
     # Save main results
     results_file = run_dir / "forecast_results.json"
