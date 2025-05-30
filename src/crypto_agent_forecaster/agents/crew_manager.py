@@ -344,8 +344,8 @@ class CryptoForecastingCrew:
             # Add small delay to ensure we don't get cached data
             time.sleep(1)
             
-            # Get OHLCV data for consistency - using a shorter period for fresher data
-            ohlcv_result = coingecko_tool.func(f"{crypto_name} ohlcv 3 days")
+            # Get OHLCV data for consistency - using consistent query format
+            ohlcv_result = coingecko_tool.func(f"{crypto_name} ohlcv 7 days")
             ohlcv_data = json.loads(ohlcv_result)
             
             if "error" not in current_price_data and "current_price" in current_price_data:
@@ -353,7 +353,7 @@ class CryptoForecastingCrew:
                 
                 # ENHANCED SANITY CHECKS for different cryptocurrencies
                 is_price_reasonable = True
-                if crypto_name.lower() == "bitcoin":
+                if crypto_name.lower() in ["bitcoin", "btc"]:
                     if api_current_price < 20000 or api_current_price > 200000:
                         print(f"⚠️ WARNING: Bitcoin price ${api_current_price:,} seems unrealistic!")
                         is_price_reasonable = False
@@ -382,7 +382,7 @@ class CryptoForecastingCrew:
                     
                     print(f"📊 Data timestamps - Latest OHLCV: {latest_candle.get('timestamp', 'Unknown')}")
                     
-                    # Compare API current price vs OHLCV close price
+                    # Compare API current price vs OHLCV close price with improved tolerance
                     if "error" not in current_price_data and "current_price" in current_price_data:
                         api_current_price = current_price_data["current_price"]
                         price_diff = abs(api_current_price - ohlcv_current_price)
@@ -391,22 +391,22 @@ class CryptoForecastingCrew:
                         print(f"📊 Price Comparison: API ${api_current_price:,.2f} vs OHLCV ${ohlcv_current_price:,.2f}")
                         print(f"📊 Price Difference: ${price_diff:,.2f} ({price_diff_percent:.2f}%)")
                         
-                        # Be more strict about price differences to catch stale data
-                        if price_diff_percent > 2:  # More than 2% difference is suspicious
-                            print(f"⚠️ WARNING: Price difference ({price_diff_percent:.2f}%) detected!")
+                        # Improved price difference tolerance - be more lenient for normal market movement
+                        if price_diff_percent > 5:  # More than 5% difference is suspicious
+                            print(f"⚠️ WARNING: Significant price difference ({price_diff_percent:.2f}%) detected!")
                             
-                            # For small differences (2-10%), use API price but warn
-                            if price_diff_percent <= 10:
+                            # For moderate differences (5-15%), use API price but warn
+                            if price_diff_percent <= 15:
                                 final_price = api_current_price
                                 print(f"🔧 Using more current API price: ${final_price:,.2f}")
                             else:
-                                # For large differences (>10%), this could indicate stale OHLCV data
-                                print(f"🚨 Large price difference detected! OHLCV data may be stale.")
-                                print(f"🚨 This could cause analysis inconsistencies.")
+                                # For large differences (>15%), this indicates serious data issues
+                                print(f"🚨 Large price difference detected! OHLCV data may be stale or incorrect.")
+                                print(f"🚨 This could cause significant analysis inconsistencies.")
                                 final_price = api_current_price
                                 print(f"🔧 Using API price, but flagging for validation: ${final_price:,.2f}")
                         else:
-                            print(f"✅ Price difference is minimal, using OHLCV close price")
+                            print(f"✅ Price difference is acceptable, using OHLCV close price")
                             final_price = ohlcv_current_price
                     else:
                         final_price = ohlcv_current_price
@@ -435,7 +435,7 @@ class CryptoForecastingCrew:
                         "data_quality": {
                             "api_ohlcv_diff_percent": price_diff_percent if 'price_diff_percent' in locals() else 0,
                             "is_price_reasonable": is_price_reasonable,
-                            "data_freshness": "fresh" if price_diff_percent < 2 else "potentially_stale",
+                            "data_freshness": "fresh" if price_diff_percent < 5 else "potentially_stale",
                             "ohlcv_data_points": len(recent_data)
                         },
                         "price_validation": {
@@ -519,24 +519,33 @@ class CryptoForecastingCrew:
                     price_diff = abs(text_price - captured_price)
                     price_diff_percent = (price_diff / captured_price) * 100
                     
-                    # Collect prices that seem like they could be current prices (within reasonable range)
-                    if crypto_name.lower() == "bitcoin":
-                        # For Bitcoin, current price should be between 20k and 200k
-                        if 20000 <= text_price <= 200000:
-                            analysis_prices.append((text_price, price_diff_percent))
-                    else:
-                        # For other cryptos, be more flexible but check for major discrepancies
-                        if price_diff_percent > 10:  # More than 10% difference
-                            analysis_prices.append((text_price, price_diff_percent))
-                    
-                    # Flag significant discrepancies (more than 20% for any price)
-                    if price_diff_percent > 20:
-                        inconsistent_prices.append((text_price, price_diff_percent))
+                    # Be more selective about which prices to validate
+                    # Only check prices that seem like they could be current market prices
+                    price_ratio = text_price / captured_price
+                    if 0.1 <= price_ratio <= 10:  # Price is within 10x range (reasonable for analysis)
+                        analysis_prices.append((text_price, price_diff_percent))
+                        
+                        # Only flag as inconsistent if difference is very large AND price seems like current price
+                        if price_diff_percent > 30:  # More than 30% difference
+                            # Additional check: only flag if this looks like a current price mention
+                            # (not a target price or historical reference)
+                            text_context = final_forecast.lower()
+                            price_mentions = [
+                                f"current.*{price_str}", f"price.*{price_str}", 
+                                f"{price_str}.*current", f"trading.*{price_str}"
+                            ]
+                            
+                            is_current_price_mention = any(
+                                re.search(pattern, text_context) for pattern in price_mentions
+                            )
+                            
+                            if is_current_price_mention or price_diff_percent > 50:  # Very large difference
+                                inconsistent_prices.append((text_price, price_diff_percent))
                         
                 except (ValueError, ZeroDivisionError):
                     continue
             
-            # Detect if analysis was done with stale/wrong price data
+            # Detect if analysis was done with seriously wrong price data
             major_inconsistencies = [p for p in inconsistent_prices if p[1] > 50]  # More than 50% difference
             
             if major_inconsistencies:
@@ -557,14 +566,14 @@ class CryptoForecastingCrew:
 - Price difference: {major_inconsistencies[0][1]:.1f}%
 
 **Why This Happened:**
-The AI agents received stale or incorrect price data during analysis, making all targets, 
-stop losses, and recommendations completely invalid for the current market price.
+The AI agents received seriously stale or incorrect price data during analysis, making 
+price targets, stop losses, and recommendations unreliable for the current market price.
 
 **What This Means:**
-- All price targets are wrong
-- Stop loss levels are wrong  
-- Risk/reward calculations are wrong
-- The forecast should NOT be used for trading
+- Price targets may be wrong
+- Stop loss levels may be wrong  
+- Risk/reward calculations may be affected
+- Use forecast directional guidance with caution
 
 **Recommended Action:**
 Run the forecast again to get fresh data and consistent analysis.
@@ -575,8 +584,9 @@ Run the forecast again to get fresh data and consistent analysis.
                 for price, diff_pct in inconsistent_prices[:3]:  # Show top 3
                     print(f"   - ${price:,.0f} (differs by {diff_pct:.1f}%)")
                 print(f"✅ Using verified market price: ${captured_price:,.2f}")
+                print(f"ℹ️ Price differences may be due to targets or historical references")
             else:
-                print(f"✅ Price consistency verified: All analysis aligns with current market price")
+                print(f"✅ Price consistency validated: Analysis aligns with current market data")
         
         # Extract forecast components with error handling for price consistency
         if price_consistency_error:
