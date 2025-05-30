@@ -23,8 +23,12 @@ def get_task_prompts():
         3. Ensure data quality and handle any API errors gracefully
         4. Format the data in JSON structure suitable for technical analysis
         
-        Use the query format: "{crypto_name} ohlcv {forecast_horizon} horizon" to get optimal data amount.
+        IMPORTANT: Use the query format: "{crypto_name} ohlcv {forecast_horizon} horizon" to get optimal data amount.
+        ALSO: Always include the most recent current price from the API in your response.
         Focus on accuracy and completeness of the data as it forms the foundation for all subsequent analysis.
+        
+        Make sure to clearly state the current price at the end of your response in the format:
+        "Current market price: $[PRICE]"
         """,
         
         "sentiment_analysis_task": """
@@ -49,13 +53,25 @@ def get_task_prompts():
         
         Your task:
         1. Use the OHLCV data from the market data agent
-        2. Calculate key technical indicators (RSI, MACD, Moving Averages, Bollinger Bands)
-        3. Identify significant candlestick patterns
-        4. Assess trend direction and momentum
-        5. Determine support and resistance levels
-        6. Provide an overall technical outlook (bullish/bearish/neutral)
+        2. Call the technical_analysis_tool with the OHLCV data and crypto name "{crypto_name}"
+        3. The tool will calculate key technical indicators (RSI, MACD, Moving Averages, Bollinger Bands)
+        4. The tool will identify significant candlestick patterns
+        5. The tool will assess trend direction and momentum
+        6. The tool will determine support and resistance levels
+        7. The tool will provide an overall technical outlook (bullish/bearish/neutral)
+        8. The tool will generate a comprehensive chart for visual analysis
         
-        Generate a clear textual summary that can be easily understood and integrated with sentiment analysis.
+        IMPORTANT: When calling technical_analysis_tool, provide parameters without enclosing the JSON in quotes:
+        - ohlcv_data: The JSON data object (pass the raw data, not a string)
+        - crypto_name: "{crypto_name}"
+
+        Example usage:
+        technical_analysis_tool(ohlcv_data=ohlcv_data, crypto_name="{crypto_name}")
+
+        Or if the JSON blob is too large to include, call the chart analysis tool using the generated chart image:
+        chart_analysis_tool(crypto_name="{crypto_name}", analysis_context="Analyze the generated chart image without passing the full OHLCV JSON")
+        
+        The tool will generate a clear textual summary with visual charts that can be easily understood and integrated with sentiment analysis.
         """,
         
         "forecasting_task": """

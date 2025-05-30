@@ -38,6 +38,7 @@ class CryptoForecastingCrew:
         
         # Storage for run data
         self.current_run_charts = {}
+        self.current_run_market_data = {}  # Store current market data
         
         # Agent and tool information
         self.agents_info = {
@@ -164,8 +165,10 @@ class CryptoForecastingCrew:
         if self.verbose:
             self.console.print(f"🔧 Verbose mode enabled - detailed execution logs will be shown")
         
-        # Reset charts storage for this run
+        # Reset charts storage and capture current market data for this run
         self.current_run_charts = {}
+        self.current_run_market_data = {}
+        self._capture_current_market_data(crypto_name)
         
         # Capture logs during execution
         with LogCapture() as log_capture:
@@ -275,6 +278,101 @@ class CryptoForecastingCrew:
                 
                 return error_result
     
+    def _capture_current_market_data(self, crypto_name: str):
+        """Capture current market data from OHLCV data for consistency."""
+        try:
+            from ..tools.coingecko_tool import coingecko_tool
+            import json
+            
+            print(f"🔍 DEBUG: Capturing current market data for {crypto_name}")
+            
+            # Get current price data first for comparison
+            current_price_result = coingecko_tool.func(f"{crypto_name} current price")
+            current_price_data = json.loads(current_price_result)
+            
+            print(f"🔍 DEBUG: Raw current price data: {current_price_data}")
+            
+            # Get OHLCV data for consistency
+            ohlcv_result = coingecko_tool.func(f"{crypto_name} ohlcv 7 days")
+            ohlcv_data = json.loads(ohlcv_result)
+            
+            if "error" not in current_price_data and "current_price" in current_price_data:
+                api_current_price = current_price_data["current_price"]
+                print(f"🔍 DEBUG: Extracted current price from API: ${api_current_price:,}")
+                
+                # SANITY CHECK: Bitcoin should be in reasonable range
+                if crypto_name.lower() == "bitcoin" and (api_current_price < 20000 or api_current_price > 200000):
+                    print(f"⚠️ WARNING: Bitcoin price ${api_current_price:,} seems unrealistic!")
+                else:
+                    print(f"✅ Current price ${api_current_price:,} seems reasonable")
+            
+            if "error" not in ohlcv_data and "ohlcv_data" in ohlcv_data:
+                # Extract current price from the most recent OHLCV data
+                recent_data = ohlcv_data["ohlcv_data"]
+                if recent_data:
+                    latest_candle = recent_data[-1]  # Most recent candle
+                    ohlcv_current_price = latest_candle["close"]
+                    
+                    print(f"🔍 DEBUG: Latest OHLCV close price: ${ohlcv_current_price:,}")
+                    
+                    # Compare API current price vs OHLCV close price
+                    if "error" not in current_price_data and "current_price" in current_price_data:
+                        api_current_price = current_price_data["current_price"]
+                        price_diff = abs(api_current_price - ohlcv_current_price)
+                        price_diff_percent = (price_diff / api_current_price) * 100 if api_current_price > 0 else 0
+                        
+                        print(f"📊 Price Comparison: API ${api_current_price:,.2f} vs OHLCV ${ohlcv_current_price:,.2f}")
+                        print(f"📊 Price Difference: ${price_diff:,.2f} ({price_diff_percent:.2f}%)")
+                        
+                        if price_diff_percent > 5:
+                            print(f"⚠️ WARNING: Significant price difference ({price_diff_percent:.2f}%) detected!")
+                            # Use API price as it's more current
+                            final_price = api_current_price
+                            print(f"🔧 Using API current price: ${final_price:,.2f}")
+                        else:
+                            print(f"✅ Price difference is acceptable, using OHLCV close price")
+                            final_price = ohlcv_current_price
+                    else:
+                        final_price = ohlcv_current_price
+                        print(f"🔧 Using OHLCV close price: ${final_price:,.2f}")
+                    
+                    # Calculate 24h price change if we have enough data
+                    price_change_24h = 0
+                    if len(recent_data) > 1:
+                        # Find candle from ~24 hours ago (depending on resolution)
+                        current_price = latest_candle["close"]
+                        # Get price from 24 hours ago (look back approximately 24 data points for hourly data)
+                        lookback_index = min(24, len(recent_data) - 1)
+                        past_candle = recent_data[-(lookback_index + 1)]
+                        past_price = past_candle["close"]
+                        if past_price > 0:
+                            price_change_24h = ((current_price - past_price) / past_price) * 100
+                    
+                    # Use the validated price
+                    self.current_run_market_data = {
+                        "current_price": final_price,
+                        "volume_24h": latest_candle["volume"],
+                        "timestamp": latest_candle["timestamp"],
+                        "cryptocurrency": crypto_name,
+                        "price_change_24h": price_change_24h,
+                        "data_source": "ohlcv_validated",
+                        "price_validation": {
+                            "api_price": current_price_data.get("current_price") if "error" not in current_price_data else None,
+                            "ohlcv_price": ohlcv_current_price,
+                            "price_diff_percent": price_diff_percent if 'price_diff_percent' in locals() else 0
+                        }
+                    }
+                    print(f"✅ Current market data captured: ${self.current_run_market_data['current_price']:,.2f} ({price_change_24h:+.2f}% 24h)")
+                else:
+                    print(f"⚠️ No OHLCV data available")
+            else:
+                print(f"⚠️ Could not capture market data: {ohlcv_data.get('error', 'Unknown error')}")
+                
+        except Exception as e:
+            print(f"⚠️ Error capturing current market data: {str(e)}")
+            import traceback
+            traceback.print_exc()
+    
     def _format_results(self, raw_result: Any, crypto_name: str, forecast_horizon: str) -> Dict[str, Any]:
         """Format the raw crew results into a structured output."""
         
@@ -283,6 +381,34 @@ class CryptoForecastingCrew:
         
         # Extract any charts that were generated during the process
         charts_info = self._extract_charts_from_forecast(final_forecast)
+        
+        # Validate price consistency between captured data and forecast text
+        captured_price = None
+        if self.current_run_market_data and "current_price" in self.current_run_market_data:
+            captured_price = self.current_run_market_data["current_price"]
+            print(f"✅ Data consistency: Using OHLCV-based price (${captured_price:,.2f}) for all analysis")
+        
+        # Check for price mentions in forecast text that might be inconsistent
+        import re
+        text_price_matches = re.findall(r'\$([0-9,]+\.?[0-9]*)', final_forecast)
+        if text_price_matches and captured_price:
+            inconsistent_prices = []
+            for price_str in text_price_matches:
+                try:
+                    text_price = float(price_str.replace(',', ''))
+                    price_diff = abs(text_price - captured_price)
+                    price_diff_percent = (price_diff / captured_price) * 100
+                    
+                    # Warn if there's a significant price discrepancy (more than 5%)
+                    if price_diff_percent > 5:
+                        inconsistent_prices.append((text_price, price_diff_percent))
+                except (ValueError, ZeroDivisionError):
+                    continue
+            
+            if inconsistent_prices:
+                print(f"⚠️ Found {len(inconsistent_prices)} potentially stale price(s) in forecast text - OHLCV price (${captured_price:,.2f}) will be used for accuracy")
+            else:
+                print(f"✅ Price consistency verified: All prices align with OHLCV data (${captured_price:,.2f})")
         
         # Try to parse forecast components
         forecast_data = {
@@ -435,23 +561,16 @@ class CryptoForecastingCrew:
             return "MEDIUM"
     
     def _extract_current_price(self, forecast_text: str) -> str:
-        """Extract current price from forecast text."""
-        import re
-        patterns = [
-            r'\*\*Current Price\*\*:\s*\$?([0-9,]+\.?[0-9]*)',
-            r'Current Price:\s*\$?([0-9,]+\.?[0-9]*)',
-            r'Current:\s*\$?([0-9,]+\.?[0-9]*)',
-            r'current.price.*?\$([0-9,]+\.?[0-9]*)',
-            r'Price.*?\$([0-9,]+\.?[0-9]*)',
-        ]
+        """Extract current price from forecast text or use captured market data."""
+        # Always prioritize captured market data (most reliable and up-to-date)
+        if self.current_run_market_data and "current_price" in self.current_run_market_data:
+            current_price = self.current_run_market_data["current_price"]
+            print(f"✅ Using captured market data current price: ${current_price:,.2f}")
+            return f"${current_price:,.2f}"
         
-        for pattern in patterns:
-            match = re.search(pattern, forecast_text, re.IGNORECASE)
-            if match:
-                # Clean up the price (remove commas)
-                price = match.group(1).replace(',', '')
-                return f"${price}"
-        return "Not specified"
+        # If no captured data, the system has a problem - don't guess from text
+        print("❌ No captured market data available - this should not happen")
+        return "Data consistency error"
     
     def _extract_targets(self, forecast_text: str) -> Dict[str, str]:
         """Extract target prices from forecast text."""

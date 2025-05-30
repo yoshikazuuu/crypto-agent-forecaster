@@ -31,19 +31,19 @@ class Config:
             "preferred_model": "gpt-4o-mini"
         },
         "sentiment": {
-            "temperature": 0.2,  # Slightly creative for nuanced sentiment
+            "temperature": 0.05,  # Very low creativity for consistent sentiment analysis
             "max_tokens": 3000,
             "preferred_provider": "anthropic", 
             "preferred_model": "claude-3-5-sonnet-20241022"
         },
         "technical": {
-            "temperature": 0.1,  # Precise for technical analysis
+            "temperature": 0.0,  # Maximum precision for technical analysis
             "max_tokens": 2500,
             "preferred_provider": "openai",
             "preferred_model": "gpt-4o"
         },
         "forecasting": {
-            "temperature": 0.3,  # Balanced for reasoning and synthesis
+            "temperature": 0.05,  # Much lower for consistent forecasts
             "max_tokens": 4000,
             "preferred_provider": "google",
             "preferred_model": "gemini-1.5-pro"
@@ -105,7 +105,7 @@ class Config:
     def get_agent_llm_config(cls, agent_type: str) -> Dict[str, Any]:
         """Get LLM configuration for a specific agent type."""
         return cls.LLM_AGENT_CONFIGS.get(agent_type, {
-            "temperature": 0.1,
+            "temperature": 0.0,  # Lower default temperature for consistency
             "max_tokens": 2000,
             "preferred_provider": cls.DEFAULT_LLM_PROVIDER,
             "preferred_model": cls.DEFAULT_LLM_MODEL

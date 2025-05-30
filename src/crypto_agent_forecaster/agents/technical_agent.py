@@ -3,7 +3,7 @@ Technical Analysis Agent for cryptocurrency chart patterns and indicators.
 """
 
 from crewai import Agent
-from ..tools import create_technical_analysis_tool
+from ..tools import create_technical_analysis_tool, create_chart_analysis_tool
 from ..llm_factory import LLMFactory
 from ..config import Config
 
@@ -11,8 +11,9 @@ from ..config import Config
 def create_technical_analysis_agent() -> Agent:
     """Create the TechnicalAnalysisAgent."""
     
-    # Create the tool instance
+    # Create the tool instances
     technical_tool = create_technical_analysis_tool()
+    chart_analysis_tool = create_chart_analysis_tool()
     
     # Get agent-specific LLM configuration
     agent_config = Config.get_agent_llm_config("technical")
@@ -28,8 +29,8 @@ def create_technical_analysis_agent() -> Agent:
     return Agent(
         role="Cryptocurrency Technical Analysis and Chart Pattern Specialist",
         goal="To process historical OHLCV data, calculate key technical indicators, "
-             "identify significant candlestick patterns, and generate a concise textual "
-             "summary of the technical outlook for a target cryptocurrency.",
+             "identify significant candlestick patterns, generate comprehensive visual charts, "
+             "and provide both numerical and visual analysis insights for a target cryptocurrency.",
         backstory="""You are a seasoned technical analyst with extensive experience in 
         cryptocurrency markets. You understand the nuances of crypto price action, which 
         can be more volatile and sentiment-driven than traditional markets.
@@ -42,10 +43,15 @@ def create_technical_analysis_agent() -> Agent:
         You excel at translating complex technical data into clear, actionable insights. 
         You understand that in crypto markets, technical analysis must be combined with 
         fundamental and sentiment analysis for optimal results. You're particularly adept 
-        at identifying confluence points where multiple technical signals align.""",
+        at identifying confluence points where multiple technical signals align.
+        
+        You always generate visual charts to accompany your analysis and can provide 
+        additional chart-based insights to enhance your technical assessment. Your visual 
+        analysis skills help identify patterns that may not be immediately apparent from 
+        numerical indicators alone.""",
         verbose=False,
         allow_delegation=False,
-        tools=[technical_tool],
+        tools=[technical_tool, chart_analysis_tool],
         llm=llm
     )
 

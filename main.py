@@ -150,6 +150,11 @@ def forecast(
         False, 
         "--verbose", "-v", 
         help="Enable verbose output with detailed execution tracking, agent interactions, and real-time progress"
+    ),
+    yes: bool = typer.Option(
+        False, 
+        "--yes", "-y", 
+        help="Skip confirmation prompt and proceed automatically"
     )
 ):
     """
@@ -203,6 +208,12 @@ def forecast(
         
         # Quick analysis for altcoins
         crypto-agent-forecaster forecast chainlink --horizon "12 hours" --verbose
+        
+        # Automated execution without confirmation prompt
+        crypto-agent-forecaster forecast bitcoin --yes
+        
+        # Fully automated with custom settings
+        crypto-agent-forecaster forecast ethereum --horizon "3 days" --provider anthropic --verbose --yes
     
     📋 SUPPORTED CRYPTOCURRENCIES:
     Use 'crypto-agent-forecaster list-cryptos' to see popular options, or any valid CoinGecko ID.
@@ -242,7 +253,7 @@ def forecast(
     console.print(f"• Model: {Config.DEFAULT_LLM_MODEL}")
     
     # Confirm before proceeding
-    if not Confirm.ask("\nProceed with forecast?", default=True):
+    if not yes and not Confirm.ask("\nProceed with forecast?", default=True):
         console.print("Forecast cancelled.")
         raise typer.Exit(0)
     
@@ -660,13 +671,13 @@ def help():
     
     🎯 PRODUCTION WORKFLOWS:
         # Daily BTC analysis with high-quality model
-        crypto-agent-forecaster forecast bitcoin --provider anthropic --horizon "24 hours" --verbose
+        crypto-agent-forecaster forecast bitcoin --provider anthropic --horizon "24 hours" --verbose --yes
         
         # Weekly portfolio review
-        crypto-agent-forecaster forecast ethereum --horizon "1 week" --provider openai --model gpt-4o
+        crypto-agent-forecaster forecast ethereum --horizon "1 week" --provider openai --model gpt-4o --yes
         
         # Quick market sentiment check
-        crypto-agent-forecaster forecast bitcoin --horizon "4 hours" --provider openai --model gpt-4o-mini
+        crypto-agent-forecaster forecast bitcoin --horizon "4 hours" --provider openai --model gpt-4o-mini --yes
     
     📁 OUTPUT LOCATIONS:
         # All results saved to: results/CRYPTO_TIMESTAMP/
