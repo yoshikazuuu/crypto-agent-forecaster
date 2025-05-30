@@ -356,7 +356,17 @@ class CryptoValidator:
             if forecast_file.exists():
                 with open(forecast_file, 'r') as f:
                     data = json.load(f)
-                    return data.get('forecast', {})
+                    # Extract the relevant forecast fields from the root level
+                    forecast_data = {
+                        'direction': data.get('direction'),
+                        'confidence': data.get('confidence'),
+                        'predicted_price': None,  # This could be extracted from targets if needed
+                        'current_price': data.get('current_price'),
+                        'targets': data.get('targets'),
+                        'stop_loss': data.get('stop_loss'),
+                        'take_profits': data.get('take_profits')
+                    }
+                    return forecast_data
             
         except Exception as e:
             self.logger.error(f"Error parsing forecast result for {coin}: {e}")
