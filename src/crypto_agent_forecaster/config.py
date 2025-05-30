@@ -77,14 +77,35 @@ class Config:
     
     # Technical Analysis Configuration
     TA_INDICATORS: dict = {
-        "sma_periods": [20, 50, 200],
-        "ema_periods": [12, 26],
+        "sma_periods": [20, 50, 100, 200],  # Extended SMA periods
+        "ema_periods": [9, 12, 26, 50],     # Extended EMA periods for professional analysis
         "rsi_period": 14,
         "macd_fast": 12,
         "macd_slow": 26,
         "macd_signal": 9,
         "bb_period": 20,
-        "bb_std": 2
+        "bb_std": 2,
+        "volume_sma_period": 20,             # Volume SMA overlay
+        "professional_colors": {             # Professional color scheme matching TradingView
+            "ema_9": "#00D4AA",              # Cyan
+            "ema_12": "#00CED1",             # Light cyan  
+            "sma_20": "#FFD700",             # Gold
+            "ema_26": "#FF8C00",             # Orange
+            "sma_50": "#DA70D6",             # Purple
+            "sma_100": "#9370DB",            # Medium purple
+            "sma_200": "#8A2BE2",            # Blue violet
+            "bollinger_bands": "#87CEEB",    # Sky blue
+            "rsi_line": "#F59E0B",           # Amber
+            "rsi_overbought": "#DC2626",     # Red
+            "rsi_oversold": "#059669",       # Green
+            "macd_line": "#00D4AA",          # Cyan
+            "macd_signal": "#FF6B6B",        # Light red
+            "macd_histogram_positive": "#10B981", # Green
+            "macd_histogram_negative": "#EF4444", # Red
+            "volume_bullish": "#10B981",     # Green
+            "volume_bearish": "#EF4444",     # Red
+            "volume_sma": "#FFD700"          # Gold
+        }
     }
     
     # Sentiment Analysis Configuration

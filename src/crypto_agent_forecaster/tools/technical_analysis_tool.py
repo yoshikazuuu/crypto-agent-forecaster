@@ -302,90 +302,191 @@ def _create_technical_chart(df: pd.DataFrame, indicators: Dict[str, Any], crypto
         actual_start_date = df['datetime'].min().strftime('%Y-%m-%d')
         actual_end_date = df['datetime'].max().strftime('%Y-%m-%d')
         
-        # Enhanced title
-        enhanced_title = (f'{crypto_name.title()} - Technical Analysis\n'
+        # Calculate key indicators for title
+        rsi_value = indicators.get('rsi', 0)
+        rsi_status = "Bullish" if rsi_value < 40 else "Bearish" if rsi_value > 60 else "Neutral"
+        
+        macd_val = indicators.get('macd', 0)
+        macd_signal = indicators.get('macd_signal', 0)
+        macd_status = "Bullish" if macd_val > macd_signal else "Bearish"
+        
+        # Enhanced professional title matching the debug chart
+        enhanced_title = (f'{crypto_name.title()} - Professional Technical Analysis\n'
                         f'Data Range: {actual_start_date} to {actual_end_date} | '
                         f'${current_price:.2f} ({price_change:+.2f}%) | '
-                        f'{len(df)} Candles')
+                        f'RSI: {rsi_value:.1f} | MACD: {macd_status} | {len(df)} Candles')
         
-        # Create TradingView-style configuration
+        # Create professional TradingView-style configuration
         custom_style = mpf.make_mpf_style(
             base_mpf_style='charles',
             marketcolors=mpf.make_marketcolors(
-                up='#26A69A',
-                down='#EF5350',
+                up='#26A69A',      # Green for bullish candles
+                down='#EF5350',    # Red for bearish candles
                 edge='inherit',
                 wick={'up': '#26A69A', 'down': '#EF5350'},
-                volume={'up': '#26A69A', 'down': '#EF5350'}
+                volume={'up': '#26A69A40', 'down': '#EF535040'}  # Semi-transparent
             ),
-            facecolor='#131722',
-            edgecolor='#2A2E39',
-            gridcolor='#363A45',
+            facecolor='#131722',   # Dark background
+            edgecolor='#2A2E39',   # Chart edges
+            gridcolor='#363A45',   # Grid lines
             gridstyle='-',
-            y_on_right=True
+            y_on_right=True        # Price axis on right like TradingView
         )
         
         # Build additional plots
         apd = []
         panel_count = 1
-        
-        # Add moving averages if data is sufficient
         min_data_points = len(df)
+        
+        # Get professional colors from config
+        colors = Config.TA_INDICATORS.get("professional_colors", {})
+        
+        # Add multiple moving averages with professional colors
+        if min_data_points >= 9:
+            ema_9 = ta.trend.EMAIndicator(df['close'], window=9).ema_indicator()
+            if not ema_9.empty and not ema_9.isna().all():
+                apd.append(mpf.make_addplot(ema_9, color=colors.get('ema_9', '#00D4AA'), width=2, alpha=0.9))  # Cyan
+        
         if min_data_points >= 12:
             ema_12 = ta.trend.EMAIndicator(df['close'], window=12).ema_indicator()
             if not ema_12.empty and not ema_12.isna().all():
-                apd.append(mpf.make_addplot(ema_12, color='#00CED1', width=2, alpha=0.8))
+                apd.append(mpf.make_addplot(ema_12, color=colors.get('ema_12', '#00CED1'), width=2, alpha=0.8))  # Light cyan
         
         if min_data_points >= 20:
             sma_20 = ta.trend.SMAIndicator(df['close'], window=20).sma_indicator()
             if not sma_20.empty and not sma_20.isna().all():
-                apd.append(mpf.make_addplot(sma_20, color='#FFD700', width=2, alpha=0.8))
+                apd.append(mpf.make_addplot(sma_20, color=colors.get('sma_20', '#FFD700'), width=2, alpha=0.8))  # Gold
         
-        # Add RSI panel
+        if min_data_points >= 26:
+            ema_26 = ta.trend.EMAIndicator(df['close'], window=26).ema_indicator()
+            if not ema_26.empty and not ema_26.isna().all():
+                apd.append(mpf.make_addplot(ema_26, color=colors.get('ema_26', '#FF8C00'), width=2, alpha=0.8))  # Orange
+        
+        if min_data_points >= 50:
+            sma_50 = ta.trend.SMAIndicator(df['close'], window=50).sma_indicator()
+            if not sma_50.empty and not sma_50.isna().all():
+                apd.append(mpf.make_addplot(sma_50, color=colors.get('sma_50', '#DA70D6'), width=2, alpha=0.8))  # Purple
+        
+        if min_data_points >= 100:
+            sma_100 = ta.trend.SMAIndicator(df['close'], window=100).sma_indicator()
+            if not sma_100.empty and not sma_100.isna().all():
+                apd.append(mpf.make_addplot(sma_100, color=colors.get('sma_100', '#9370DB'), width=2, alpha=0.7))  # Medium purple
+        
+        if min_data_points >= 200:
+            sma_200 = ta.trend.SMAIndicator(df['close'], window=200).sma_indicator()
+            if not sma_200.empty and not sma_200.isna().all():
+                apd.append(mpf.make_addplot(sma_200, color=colors.get('sma_200', '#8A2BE2'), width=3, alpha=0.7))  # Blue violet
+        
+        # Add Bollinger Bands if available
+        if min_data_points >= 20:
+            bb_indicator = ta.volatility.BollingerBands(df['close'], window=20, window_dev=2)
+            bb_upper = bb_indicator.bollinger_hband()
+            bb_lower = bb_indicator.bollinger_lband()
+            if not bb_upper.empty and not bb_lower.empty:
+                bb_color = colors.get('bollinger_bands', '#87CEEB')
+                apd.extend([
+                    mpf.make_addplot(bb_upper, color=bb_color, width=1, alpha=0.5, linestyle='--'),
+                    mpf.make_addplot(bb_lower, color=bb_color, width=1, alpha=0.5, linestyle='--')
+                ])
+        
+        # Add RSI panel (panel 1)
         if min_data_points >= 14:
             rsi = ta.momentum.RSIIndicator(df['close'], window=14).rsi()
             if not rsi.empty and not rsi.isna().all():
                 panel_count += 1
-                apd.append(mpf.make_addplot(rsi, panel=1, color='#F59E0B', width=3, ylabel='RSI'))
+                apd.append(mpf.make_addplot(rsi, panel=1, color=colors.get('rsi_line', '#F59E0B'), width=3, ylabel='RSI (14)'))
                 
-                # RSI levels
+                # RSI overbought/oversold levels
+                rsi_80 = pd.Series([80]*len(rsi), index=rsi.index)
                 rsi_70 = pd.Series([70]*len(rsi), index=rsi.index)
+                rsi_50 = pd.Series([50]*len(rsi), index=rsi.index)
                 rsi_30 = pd.Series([30]*len(rsi), index=rsi.index)
+                rsi_20 = pd.Series([20]*len(rsi), index=rsi.index)
+                
+                overbought_color = colors.get('rsi_overbought', '#DC2626')
+                oversold_color = colors.get('rsi_oversold', '#059669')
+                
                 apd.extend([
-                    mpf.make_addplot(rsi_70, panel=1, color='#DC2626', width=1, linestyle='--'),
-                    mpf.make_addplot(rsi_30, panel=1, color='#059669', width=1, linestyle='--')
+                    mpf.make_addplot(rsi_80, panel=1, color=overbought_color, width=0.8, linestyle='--', alpha=0.6),
+                    mpf.make_addplot(rsi_70, panel=1, color=overbought_color, width=1, linestyle='--', alpha=0.8),
+                    mpf.make_addplot(rsi_50, panel=1, color='#6B7280', width=0.8, linestyle='-', alpha=0.5),
+                    mpf.make_addplot(rsi_30, panel=1, color=oversold_color, width=1, linestyle='--', alpha=0.8),
+                    mpf.make_addplot(rsi_20, panel=1, color=oversold_color, width=0.8, linestyle='--', alpha=0.6)
                 ])
         
-        # Add volume if available
+        # Add MACD panel (panel 2) with histogram
+        if min_data_points >= 26:
+            macd_indicator = ta.trend.MACD(df['close'], window_slow=26, window_fast=12, window_sign=9)
+            macd_line = macd_indicator.macd()
+            macd_signal_line = macd_indicator.macd_signal()
+            macd_histogram = macd_indicator.macd_diff()
+            
+            if not macd_line.empty and not macd_signal_line.empty and not macd_histogram.empty:
+                panel_count += 1
+                
+                # MACD line and signal
+                apd.extend([
+                    mpf.make_addplot(macd_line, panel=2, color=colors.get('macd_line', '#00D4AA'), width=2, ylabel='MACD (12,26,9)'),
+                    mpf.make_addplot(macd_signal_line, panel=2, color=colors.get('macd_signal', '#FF6B6B'), width=2)
+                ])
+                
+                # MACD histogram with conditional colors
+                pos_color = colors.get('macd_histogram_positive', '#10B981')
+                neg_color = colors.get('macd_histogram_negative', '#EF4444')
+                macd_hist_colors = [pos_color if val > 0 else neg_color for val in macd_histogram]
+                apd.append(mpf.make_addplot(macd_histogram, panel=2, type='bar', 
+                                         color=macd_hist_colors, alpha=0.6, width=0.8))
+                
+                # Zero line
+                macd_zero = pd.Series([0]*len(macd_line), index=macd_line.index)
+                apd.append(mpf.make_addplot(macd_zero, panel=2, color='#6B7280', width=0.8, 
+                                         linestyle='-', alpha=0.5))
+        
+        # Add Volume with SMA overlay (panel 3)
         if 'volume' in chart_df.columns and (chart_df['volume'] > 0).any():
             panel_count += 1
-            volume_colors = ['#10B981' if row['close'] >= row['open'] else '#EF4444' 
+            
+            # Volume bars with conditional colors
+            bull_vol_color = colors.get('volume_bullish', '#10B981')
+            bear_vol_color = colors.get('volume_bearish', '#EF4444')
+            volume_colors = [bull_vol_color if row['close'] >= row['open'] else bear_vol_color 
                            for _, row in chart_df.iterrows()]
             apd.append(mpf.make_addplot(chart_df['volume'], panel=panel_count-1, type='bar', 
-                                     color=volume_colors, alpha=0.7, ylabel='Volume'))
+                                     color=volume_colors, alpha=0.7, ylabel='Volume & SMA(20)'))
+            
+            # Volume SMA overlay
+            if min_data_points >= 20:
+                volume_sma = ta.trend.SMAIndicator(df['volume'], window=20).sma_indicator()
+                if not volume_sma.empty and not volume_sma.isna().all():
+                    apd.append(mpf.make_addplot(volume_sma, panel=panel_count-1, color=colors.get('volume_sma', '#FFD700'), 
+                                             width=2, alpha=0.8))
         
-        # Set panel ratios
+        # Set panel ratios for professional layout
         if panel_count == 1:
             panel_ratios = None
-            figsize = (16, 10)
+            figsize = (20, 12)
         elif panel_count == 2:
-            panel_ratios = (3, 1)
-            figsize = (16, 12)
+            panel_ratios = (4, 1)
+            figsize = (20, 14)
+        elif panel_count == 3:
+            panel_ratios = (4, 1, 1)
+            figsize = (20, 16)
         else:
-            panel_ratios = (3, 1, 1.2)
-            figsize = (16, 14)
+            panel_ratios = (4, 1, 1, 1.2)
+            figsize = (20, 18)
         
-        # Create the plot
+        # Create the professional plot
         plot_kwargs = {
             'data': chart_df[['open', 'high', 'low', 'close']],
             'type': 'candle',
             'style': custom_style,
-            'volume': False,
+            'volume': False,  # We handle volume separately
             'title': enhanced_title,
             'ylabel': 'Price ($)',
             'figsize': figsize,
             'returnfig': True,
-            'tight_layout': True
+            'tight_layout': True,
+            'show_nontrading': False
         }
         
         if apd:
@@ -395,16 +496,25 @@ def _create_technical_chart(df: pd.DataFrame, indicators: Dict[str, Any], crypto
         
         fig, axes = mpf.plot(**plot_kwargs)
         
-        # Enhanced styling
+        # Enhanced professional styling
         fig.patch.set_facecolor('#131722')
-        fig.suptitle(enhanced_title, fontsize=14, fontweight='bold', color='#D1D4DC', y=0.98)
+        fig.suptitle(enhanced_title, fontsize=16, fontweight='bold', color='#D1D4DC', y=0.98)
         
-        # Configure legends with white font color
+        # Configure legends and professional appearance
         for ax in fig.get_axes():
+            ax.set_facecolor('#131722')
+            ax.tick_params(colors='#D1D4DC', which='both')
+            ax.xaxis.label.set_color('#D1D4DC')
+            ax.yaxis.label.set_color('#D1D4DC')
+            
+            # Style the grid
+            ax.grid(True, color='#363A45', linestyle='-', linewidth=0.5, alpha=0.3)
+            
             if ax.get_legend():
                 ax.get_legend().set_facecolor('#131722')
+                ax.get_legend().set_edgecolor('#363A45')
                 for text in ax.get_legend().get_texts():
-                    text.set_color('white')
+                    text.set_color('#D1D4DC')
         
         # Add custom legend for moving averages on main price panel
         if len(apd) > 0:
@@ -412,15 +522,27 @@ def _create_technical_chart(df: pd.DataFrame, indicators: Dict[str, Any], crypto
             legend_elements = []
             legend_labels = []
             
+            from matplotlib.lines import Line2D
+            
+            if min_data_points >= 9:
+                legend_elements.append(Line2D([0], [0], color=colors.get('ema_9', '#00D4AA'), lw=2, alpha=0.9))
+                legend_labels.append('EMA 9')
+            
             if min_data_points >= 12:
-                from matplotlib.lines import Line2D
-                legend_elements.append(Line2D([0], [0], color='#00CED1', lw=2, alpha=0.8))
+                legend_elements.append(Line2D([0], [0], color=colors.get('ema_12', '#00CED1'), lw=2, alpha=0.8))
                 legend_labels.append('EMA 12')
             
             if min_data_points >= 20:
-                from matplotlib.lines import Line2D
-                legend_elements.append(Line2D([0], [0], color='#FFD700', lw=2, alpha=0.8))
+                legend_elements.append(Line2D([0], [0], color=colors.get('sma_20', '#FFD700'), lw=2, alpha=0.8))
                 legend_labels.append('SMA 20')
+            
+            if min_data_points >= 26:
+                legend_elements.append(Line2D([0], [0], color=colors.get('ema_26', '#FF8C00'), lw=2, alpha=0.8))
+                legend_labels.append('EMA 26')
+            
+            if min_data_points >= 50:
+                legend_elements.append(Line2D([0], [0], color=colors.get('sma_50', '#DA70D6'), lw=2, alpha=0.8))
+                legend_labels.append('SMA 50')
             
             if legend_elements:
                 main_ax = fig.get_axes()[0]  # First axis is the main price chart
@@ -428,12 +550,12 @@ def _create_technical_chart(df: pd.DataFrame, indicators: Dict[str, Any], crypto
                                       loc='upper left', framealpha=0.9, 
                                       facecolor='#131722', edgecolor='#363A45')
                 for text in legend.get_texts():
-                    text.set_color('white')
+                    text.set_color('#D1D4DC')
                     text.set_fontsize(10)
         
         # Save chart to temporary file for multimodal access
         temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.png', prefix=f'chart_{crypto_name}_')
-        fig.savefig(temp_file.name, format='png', dpi=200, bbox_inches='tight', 
+        fig.savefig(temp_file.name, format='png', dpi=300, bbox_inches='tight', 
                    facecolor='#131722', edgecolor='none', pad_inches=0.3)
         plt.close(fig)
         
@@ -448,16 +570,27 @@ def _create_technical_chart(df: pd.DataFrame, indicators: Dict[str, Any], crypto
         return True
         
     except Exception as e:
+        print(f"Error creating professional chart: {e}")
         return _create_fallback_line_chart(df, indicators, crypto_name)
 
 
 def _create_fallback_line_chart(df: pd.DataFrame, indicators: Dict[str, Any], crypto_name: str) -> bool:
-    """Create a simple fallback chart if advanced charting fails."""
+    """Create a professional fallback chart if advanced charting fails."""
     global _current_chart_data, _current_chart_path
     
     try:
         plt.style.use('dark_background')
-        fig, ax = plt.subplots(figsize=(12, 8))
+        fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(16, 12), 
+                                      gridspec_kw={'height_ratios': [3, 1]})
+        
+        # Set dark theme colors
+        fig.patch.set_facecolor('#131722')
+        for ax in [ax1, ax2]:
+            ax.set_facecolor('#131722')
+            ax.tick_params(colors='#D1D4DC', which='both')
+            ax.xaxis.label.set_color('#D1D4DC')
+            ax.yaxis.label.set_color('#D1D4DC')
+            ax.grid(True, color='#363A45', linestyle='-', linewidth=0.5, alpha=0.3)
         
         if 'timestamp' in df.columns:
             df['datetime'] = pd.to_datetime(df['timestamp'], unit='s' if df['timestamp'].dtype in ['int64', 'float64'] else None)
@@ -466,23 +599,94 @@ def _create_fallback_line_chart(df: pd.DataFrame, indicators: Dict[str, Any], cr
         
         current_price = df['close'].iloc[-1]
         price_change = ((current_price - df['close'].iloc[0]) / df['close'].iloc[0] * 100) if len(df) > 1 else 0
+        rsi_value = indicators.get('rsi', 0)
         
-        ax.plot(df['datetime'], df['close'], color='#00D4AA', linewidth=2, label='Close Price')
-        ax.set_title(f'{crypto_name.title()} - Price Chart (Fallback)\nCurrent: ${current_price:.2f} ({price_change:+.2f}%)', 
-                    fontsize=14, color='white')
-        ax.set_ylabel('Price ($)', color='white')
+        # Get professional colors from config
+        colors = Config.TA_INDICATORS.get("professional_colors", {})
         
-        # Create legend with white font color
-        legend = ax.legend(facecolor='#1a1a1a', edgecolor='#444444', framealpha=0.9)
-        for text in legend.get_texts():
-            text.set_color('white')
+        # Main price chart
+        ax1.plot(df['datetime'], df['close'], color='#00D4AA', linewidth=3, label='Close Price')
         
-        ax.grid(True, alpha=0.3)
+        # Add moving averages if available
+        if len(df) >= 20:
+            sma_20 = df['close'].rolling(window=20).mean()
+            ax1.plot(df['datetime'], sma_20, color=colors.get('sma_20', '#FFD700'), linewidth=2, alpha=0.8, label='SMA 20')
+        
+        if len(df) >= 50:
+            sma_50 = df['close'].rolling(window=50).mean()
+            ax1.plot(df['datetime'], sma_50, color=colors.get('sma_50', '#DA70D6'), linewidth=2, alpha=0.8, label='SMA 50')
+        
+        ax1.set_title(f'{crypto_name.title()} - Professional Technical Analysis (Fallback)\n'
+                     f'Current: ${current_price:.2f} ({price_change:+.2f}%) | RSI: {rsi_value:.1f}', 
+                     fontsize=14, color='#D1D4DC', fontweight='bold')
+        ax1.set_ylabel('Price ($)', color='#D1D4DC')
+        
+        # Create legend with professional style
+        legend1 = ax1.legend(facecolor='#131722', edgecolor='#363A45', framealpha=0.9)
+        for text in legend1.get_texts():
+            text.set_color('#D1D4DC')
+        
+        # RSI subplot if available
+        if 'rsi' in indicators and len(df) >= 14:
+            # Calculate RSI for visualization
+            rsi_series = pd.Series(index=df.index, dtype=float)
+            rsi_series.iloc[-1] = indicators['rsi']
+            
+            # Simple RSI approximation for visualization
+            for i in range(len(df) - 2, -1, -1):
+                if i >= 13:  # Only calculate when we have enough data
+                    gains = df['close'].diff().clip(lower=0)
+                    losses = -df['close'].diff().clip(upper=0)
+                    avg_gain = gains.rolling(window=14).mean().iloc[i]
+                    avg_loss = losses.rolling(window=14).mean().iloc[i]
+                    if avg_loss != 0:
+                        rs = avg_gain / avg_loss
+                        rsi_series.iloc[i] = 100 - (100 / (1 + rs))
+            
+            rsi_series = rsi_series.dropna()
+            if not rsi_series.empty:
+                ax2.plot(df['datetime'][-len(rsi_series):], rsi_series, color=colors.get('rsi_line', '#F59E0B'), linewidth=3, label='RSI')
+                ax2.axhline(y=70, color=colors.get('rsi_overbought', '#DC2626'), linestyle='--', alpha=0.8, linewidth=1)
+                ax2.axhline(y=30, color=colors.get('rsi_oversold', '#059669'), linestyle='--', alpha=0.8, linewidth=1)
+                ax2.axhline(y=50, color='#6B7280', linestyle='-', alpha=0.5, linewidth=1)
+                ax2.set_ylabel('RSI (14)', color='#D1D4DC')
+                ax2.set_ylim(0, 100)
+                
+                legend2 = ax2.legend(facecolor='#131722', edgecolor='#363A45', framealpha=0.9)
+                for text in legend2.get_texts():
+                    text.set_color('#D1D4DC')
+        else:
+            # Remove the second subplot if no RSI
+            ax2.remove()
+            fig, ax1 = plt.subplots(1, 1, figsize=(16, 10))
+            fig.patch.set_facecolor('#131722')
+            ax1.set_facecolor('#131722')
+            ax1.tick_params(colors='#D1D4DC', which='both')
+            ax1.xaxis.label.set_color('#D1D4DC')
+            ax1.yaxis.label.set_color('#D1D4DC')
+            ax1.grid(True, color='#363A45', linestyle='-', linewidth=0.5, alpha=0.3)
+            
+            # Replot on single axis
+            ax1.plot(df['datetime'], df['close'], color='#00D4AA', linewidth=3, label='Close Price')
+            if len(df) >= 20:
+                sma_20 = df['close'].rolling(window=20).mean()
+                ax1.plot(df['datetime'], sma_20, color=colors.get('sma_20', '#FFD700'), linewidth=2, alpha=0.8, label='SMA 20')
+            
+            ax1.set_title(f'{crypto_name.title()} - Professional Technical Analysis (Fallback)\n'
+                         f'Current: ${current_price:.2f} ({price_change:+.2f}%)', 
+                         fontsize=14, color='#D1D4DC', fontweight='bold')
+            ax1.set_ylabel('Price ($)', color='#D1D4DC')
+            
+            legend1 = ax1.legend(facecolor='#131722', edgecolor='#363A45', framealpha=0.9)
+            for text in legend1.get_texts():
+                text.set_color('#D1D4DC')
+        
+        plt.tight_layout()
         
         # Save to temporary file
         temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.png', prefix=f'fallback_chart_{crypto_name}_')
-        fig.savefig(temp_file.name, format='png', dpi=150, bbox_inches='tight', 
-                   facecolor='#1a1a1a', edgecolor='none')
+        fig.savefig(temp_file.name, format='png', dpi=300, bbox_inches='tight', 
+                   facecolor='#131722', edgecolor='none', pad_inches=0.3)
         plt.close(fig)
         
         _current_chart_path = temp_file.name
@@ -495,6 +699,7 @@ def _create_fallback_line_chart(df: pd.DataFrame, indicators: Dict[str, Any], cr
         return True
         
     except Exception as e:
+        print(f"Error creating fallback chart: {e}")
         return False
 
 
