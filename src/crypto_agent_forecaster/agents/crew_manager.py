@@ -107,7 +107,7 @@ class CryptoForecastingCrew:
                 forecast_horizon=forecast_horizon
             ),
             agent=self.market_agent,
-            expected_output="Historical OHLCV data for the past 30 days and current market statistics in JSON format"
+            expected_output="Concise market data summary including current price, data coverage, key metrics, and quality assessment (NO raw OHLCV data)"
         )
         tasks.append(market_data_task)
         
@@ -118,7 +118,7 @@ class CryptoForecastingCrew:
                 forecast_horizon=forecast_horizon
             ),
             agent=self.sentiment_agent,
-            expected_output="Comprehensive sentiment analysis including scores, FUD/shill detection, and key topics"
+            expected_output="Comprehensive sentiment analysis including scores, FUD/shill detection, and key narrative themes"
         )
         tasks.append(sentiment_task)
         
@@ -129,8 +129,8 @@ class CryptoForecastingCrew:
                 forecast_horizon=forecast_horizon
             ),
             agent=self.technical_agent,
-            expected_output="Technical analysis summary with indicators, patterns, and overall outlook",
-            context=[market_data_task]  # Depends on market data
+            expected_output="Technical analysis insights summary with indicator signals, patterns, support/resistance levels, and outlook (NO raw data reproduction)"
+            # Removed context dependency - technical analysis fetches its own data
         )
         tasks.append(technical_task)
         
@@ -216,7 +216,7 @@ class CryptoForecastingCrew:
                     # Log the sanitized crew output
                     crew_output = captured_output.getvalue()
                     if crew_output:
-                        sanitized_output = sanitize_for_logging(crew_output, max_json_length=300)
+                        sanitized_output = sanitize_for_logging(crew_output)
                         log_capture.log(f"Crew execution output: {sanitized_output}")
                 
                 # Parse and format results
@@ -284,13 +284,11 @@ class CryptoForecastingCrew:
             from ..tools.coingecko_tool import coingecko_tool
             import json
             
-            print(f"🔍 DEBUG: Capturing current market data for {crypto_name}")
             
             # Get current price data first for comparison
             current_price_result = coingecko_tool.func(f"{crypto_name} current price")
             current_price_data = json.loads(current_price_result)
             
-            print(f"🔍 DEBUG: Raw current price data: {current_price_data}")
             
             # Get OHLCV data for consistency
             ohlcv_result = coingecko_tool.func(f"{crypto_name} ohlcv 7 days")
@@ -298,7 +296,6 @@ class CryptoForecastingCrew:
             
             if "error" not in current_price_data and "current_price" in current_price_data:
                 api_current_price = current_price_data["current_price"]
-                print(f"🔍 DEBUG: Extracted current price from API: ${api_current_price:,}")
                 
                 # SANITY CHECK: Bitcoin should be in reasonable range
                 if crypto_name.lower() == "bitcoin" and (api_current_price < 20000 or api_current_price > 200000):
@@ -313,7 +310,6 @@ class CryptoForecastingCrew:
                     latest_candle = recent_data[-1]  # Most recent candle
                     ohlcv_current_price = latest_candle["close"]
                     
-                    print(f"🔍 DEBUG: Latest OHLCV close price: ${ohlcv_current_price:,}")
                     
                     # Compare API current price vs OHLCV close price
                     if "error" not in current_price_data and "current_price" in current_price_data:
@@ -551,13 +547,59 @@ class CryptoForecastingCrew:
     
     def _extract_confidence(self, forecast_text: str) -> str:
         """Extract confidence from forecast text."""
+        import re
         text_upper = forecast_text.upper()
         
-        if "HIGH CONFIDENCE" in text_upper or "VERY CONFIDENT" in text_upper:
+        # More precise pattern matching to avoid false positives
+        confidence_patterns = [
+            # Look for explicit confidence level declarations first
+            r'\*\*CONFIDENCE LEVEL\*\*:\s*(HIGH|MEDIUM|LOW)',
+            r'\*\*CONFIDENCE:\*\*\s*(HIGH|MEDIUM|LOW)', 
+            r'CONFIDENCE LEVEL:\s*(HIGH|MEDIUM|LOW)',
+            r'CONFIDENCE:\s*(HIGH|MEDIUM|LOW)',
+            
+            # Look for confidence descriptions
+            r'(HIGH|VERY HIGH)\s+CONFIDENCE',
+            r'(MEDIUM|MODERATE|MODERATE)\s+CONFIDENCE',
+            r'(LOW|VERY LOW)\s+CONFIDENCE',
+            
+            # Additional patterns
+            r'CONFIDENCE\s+(?:IS\s+|LEVEL\s+(?:IS\s+)?)(HIGH|MEDIUM|LOW)',
+        ]
+        
+        # Try each pattern in order of specificity
+        for pattern in confidence_patterns:
+            match = re.search(pattern, text_upper)
+            if match:
+                confidence_level = match.group(1).upper()
+                print(f"✅ Confidence extracted using pattern '{pattern}': {confidence_level}")
+                
+                # Normalize variations
+                if confidence_level in ['MODERATE', 'MEDIUM']:
+                    return "MEDIUM"
+                elif confidence_level in ['VERY HIGH']:
+                    return "HIGH"
+                elif confidence_level in ['VERY LOW']:
+                    return "LOW"
+                else:
+                    return confidence_level
+        
+        # Fallback: Count confidence-related words with more precision
+        high_indicators = len(re.findall(r'\b(?:HIGH|STRONG|VERY\s+CONFIDENT)\b', text_upper))
+        medium_indicators = len(re.findall(r'\b(?:MEDIUM|MODERATE|MODERATELY\s+CONFIDENT)\b', text_upper))
+        low_indicators = len(re.findall(r'\b(?:LOW|WEAK|UNCERTAIN|MIXED\s+SIGNALS)\b', text_upper))
+        
+        print(f"ℹ️ Confidence indicators found - High: {high_indicators}, Medium: {medium_indicators}, Low: {low_indicators}")
+        
+        # Make decision based on strongest signal
+        if high_indicators > max(medium_indicators, low_indicators):
+            print("ℹ️ Confidence extracted from high indicators: HIGH")
             return "HIGH"
-        elif "LOW CONFIDENCE" in text_upper or "LOW" in text_upper:
+        elif low_indicators > max(high_indicators, medium_indicators):
+            print("ℹ️ Confidence extracted from low indicators: LOW")
             return "LOW"
         else:
+            print("ℹ️ Confidence defaulting to MEDIUM")
             return "MEDIUM"
     
     def _extract_current_price(self, forecast_text: str) -> str:
@@ -772,7 +814,7 @@ class CryptoForecastingCrew:
         dependencies = [
             "None",
             "None",
-            "Market Data",
+            "None",
             "Sentiment + Technical Analysis"
         ]
         

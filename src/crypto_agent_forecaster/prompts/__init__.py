@@ -14,18 +14,27 @@ def get_task_prompts():
         Fetch comprehensive market data for {crypto_name} to support the {forecast_horizon} forecast.
         
         Your task:
-        1. Get historical OHLCV data optimized for the {forecast_horizon} forecast horizon:
+        1. Use the coingecko_tool to get historical OHLCV data optimized for the {forecast_horizon} forecast horizon:
            - For hour-based forecasts (1hr, 4hr, 12hr): Get 3-14 days of data
            - For day-based forecasts (1d, 3d, 7d): Get 1-3 months of data  
            - For week-based forecasts: Get 3-4 months of data
            - For month-based forecasts: Get 1 year of data
         2. Fetch current market statistics (price, volume, market cap)
-        3. Ensure data quality and handle any API errors gracefully
-        4. Format the data in JSON structure suitable for technical analysis
+        3. Analyze the data quality and key metrics
         
         IMPORTANT: Use the query format: "{crypto_name} ohlcv {forecast_horizon} horizon" to get optimal data amount.
-        ALSO: Always include the most recent current price from the API in your response.
-        Focus on accuracy and completeness of the data as it forms the foundation for all subsequent analysis.
+        Example: coingecko_tool(query="{crypto_name} ohlcv {forecast_horizon} horizon")
+        
+        CRITICAL: Do NOT include the full OHLCV dataset in your response. Instead, provide only a CONCISE SUMMARY containing:
+        - Current market price with timestamp
+        - Data period covered (start date to end date)
+        - Number of data points collected
+        - Key price levels (recent high, low, average)
+        - Volume trends and market cap information
+        - Data quality assessment
+        - Any notable patterns or anomalies in the dataset
+        
+        Your response should be a brief, informative summary (under 500 words) that provides context for analysis without overwhelming other agents with raw data.
         
         Make sure to clearly state the current price at the end of your response in the format:
         "Current market price: $[PRICE]"
@@ -35,8 +44,11 @@ def get_task_prompts():
         Analyze sentiment and market narratives for {crypto_name} over the {forecast_horizon} forecast period.
         
         Your task:
-        1. Gather recent discussions about {crypto_name} from 4chan /biz/ board
-        2. Search for keywords: [{crypto_name}, btc, bitcoin, crypto, coin, moon, pump, dump]
+        1. Gather recent discussions about {crypto_name} from 4chan /biz/ board using the fourchan_tool
+        2. Use the fourchan_tool with these parameters:
+           - keywords: A list of relevant search terms like ["{crypto_name}", "btc", "bitcoin", "crypto", "coin", "moon", "pump", "dump"]
+           - max_threads: 5 (default, can be adjusted based on needs)
+           - max_posts_per_thread: 20 (default, can be adjusted based on needs)
         3. Analyze sentiment with special focus on:
            - Overall sentiment (positive/negative/neutral)
            - FUD detection (fear, uncertainty, doubt campaigns)
@@ -45,6 +57,9 @@ def get_task_prompts():
         4. Provide sentiment scores and confidence levels
         5. Identify any coordinated or suspicious activity patterns
         
+        Example tool usage:
+        fourchan_tool(keywords=["{crypto_name}", "btc", "bitcoin", "crypto", "coin", "moon", "pump", "dump"], max_threads=5, max_posts_per_thread=20)
+        
         Be especially careful to distinguish genuine sentiment from manipulation attempts.
         """,
         
@@ -52,26 +67,30 @@ def get_task_prompts():
         Perform comprehensive technical analysis on {crypto_name} for the {forecast_horizon} forecast.
         
         Your task:
-        1. Use the OHLCV data from the market data agent
-        2. Call the technical_analysis_tool with the OHLCV data and crypto name "{crypto_name}"
-        3. The tool will calculate key technical indicators (RSI, MACD, Moving Averages, Bollinger Bands)
-        4. The tool will identify significant candlestick patterns
-        5. The tool will assess trend direction and momentum
-        6. The tool will determine support and resistance levels
-        7. The tool will provide an overall technical outlook (bullish/bearish/neutral)
-        8. The tool will generate a comprehensive chart for visual analysis
+        1. Use the technical_analysis_tool directly with the cryptocurrency name:
+           - The tool will automatically fetch fresh OHLCV data internally
+           - It will fetch the optimal amount of historical data for analysis
+           - Specify the number of days for the analysis if needed (default is 30 days)
         
-        IMPORTANT: When calling technical_analysis_tool, provide parameters without enclosing the JSON in quotes:
-        - ohlcv_data: The JSON data object (pass the raw data, not a string)
-        - crypto_name: "{crypto_name}"
-
-        Example usage:
-        technical_analysis_tool(ohlcv_data=ohlcv_data, crypto_name="{crypto_name}")
-
-        Or if the JSON blob is too large to include, call the chart analysis tool using the generated chart image:
-        chart_analysis_tool(crypto_name="{crypto_name}", analysis_context="Analyze the generated chart image without passing the full OHLCV JSON")
+        2. Process the technical analysis results and create a comprehensive summary that includes:
+           - Key technical indicators (RSI, MACD, Moving Averages, Bollinger Bands) and their signals
+           - Significant candlestick patterns identified
+           - Trend direction and momentum assessment
+           - Critical support and resistance levels
+           - Overall technical outlook (bullish/bearish/neutral)
+           - Chart patterns and their implications
         
-        The tool will generate a clear textual summary with visual charts that can be easily understood and integrated with sentiment analysis.
+        CRITICAL: 
+        - Use technical_analysis_tool(crypto_name="{crypto_name}", days=30) or similar
+        - The tool handles all data fetching internally
+        - Focus on ANALYSIS and INSIGHTS, not data replication
+        - Provide a clear, actionable technical summary
+        - Include specific price levels and percentages where relevant
+        
+        Example tool usage:
+        technical_analysis_tool(crypto_name="{crypto_name}", days=30)
+        
+        Your response should focus on what the technical indicators are telling us about future price movement, with specific actionable insights for the {forecast_horizon} timeframe.
         """,
         
         "forecasting_task": """

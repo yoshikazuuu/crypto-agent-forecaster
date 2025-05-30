@@ -1,161 +1,334 @@
 """
-Chart analysis tool for providing additional insights on generated technical analysis charts.
+Chart analysis tool for providing multimodal analysis of generated technical analysis charts.
 """
 
 import base64
-from typing import Optional
+import os
+from typing import Optional, Union
 from crewai.tools import tool
-from .technical_analysis_tool import get_current_chart_data
+from crewai import Agent, Task, Crew
+from .technical_analysis_tool import get_current_chart_path, get_current_chart_data
 
 
 @tool("chart_analysis_tool")
-def chart_analysis_tool(crypto_name: str, analysis_context: str = "") -> str:
+def chart_analysis_tool(analysis_context: str = "") -> str:
     """
-    Analyzes the most recently generated technical analysis chart and provides additional insights.
+    Analyzes the most recently generated technical analysis chart using multimodal AI capabilities.
     
     Args:
-        crypto_name: Name of the cryptocurrency being analyzed
-        analysis_context: Additional context or specific aspects to focus on in the analysis
+        analysis_context: Additional context or specific aspects to focus on in the analysis.
+                         Can include crypto_name by prefixing with "crypto_name:bitcoin," or similar.
     
     Returns:
-        Detailed chart analysis and interpretation with actionable insights
+        Detailed AI-powered chart analysis with visual insights and actionable recommendations
     """
     
-    # Get the current chart data
+    # Extract crypto_name from analysis_context if provided
+    crypto_name = "Cryptocurrency"
+    if analysis_context and "crypto_name:" in analysis_context:
+        try:
+            context_parts = analysis_context.split("crypto_name:")
+            if len(context_parts) > 1:
+                name_part = context_parts[1].split(",")[0].strip()
+                if name_part:
+                    crypto_name = name_part
+                    # Remove the crypto_name part from analysis_context
+                    analysis_context = context_parts[0] + ",".join(context_parts[1].split(",")[1:])
+                    analysis_context = analysis_context.strip().strip(",").strip()
+        except:
+            pass  # If parsing fails, use default
+    
+    # Get the current chart path for multimodal analysis
+    chart_path = get_current_chart_path()
     chart_data = get_current_chart_data()
     
-    if not chart_data:
-        return f"No chart data available for {crypto_name}. Please run technical analysis first to generate a chart."
+    if not chart_path or not os.path.exists(chart_path):
+        return f"❌ No chart data available for {crypto_name}. Please run technical analysis first to generate a chart."
     
-    # Enhanced chart analysis logic with specific focus areas
-    analysis_summary = f"""
-**📈 Advanced Visual Chart Analysis for {crypto_name.title()}**
+    try:
+        # Create a multimodal agent for chart analysis
+        chart_analyst = Agent(
+            role="Expert Technical Chart Analyst",
+            goal=f"Analyze the technical analysis chart for {crypto_name} and provide detailed visual insights",
+            backstory="""You are a world-class technical analyst with over 20 years of experience in 
+            cryptocurrency markets. You specialize in visual chart pattern recognition, trend analysis, 
+            support/resistance identification, and providing actionable trading insights. You have an 
+            exceptional ability to interpret complex multi-panel technical charts including candlesticks, 
+            volume, RSI, MACD, and moving averages.""",
+            multimodal=True,  # Enable multimodal capabilities
+            verbose=True
+        )
+        
+        # Define the analysis focus based on context
+        analysis_focus = analysis_context if analysis_context else """
+        Comprehensive technical analysis focusing on:
+        1. Price action and trend direction
+        2. Support and resistance levels
+        3. Technical indicator signals
+        4. Entry/exit opportunities
+        5. Risk management levels
+        """
+        
+        # Create a detailed analysis task
+        analysis_task = Task(
+            description=f"""
+            Analyze the technical analysis chart for {crypto_name} located at: {chart_path}
+            
+            Please provide a comprehensive analysis covering:
+            
+            **Chart Structure Analysis:**
+            - Overall trend direction (bullish/bearish/sideways)
+            - Key support and resistance levels visible on the chart
+            - Price position relative to moving averages
+            - Volume patterns and confirmation signals
+            
+            **Technical Indicator Analysis:**
+            - RSI readings and momentum signals
+            - MACD crossovers and divergences
+            - Moving average positioning and crossovers
+            - Bollinger Band position and squeeze/expansion patterns
+            
+            **Pattern Recognition:**
+            - Candlestick patterns and formations
+            - Chart patterns (triangles, channels, flags, etc.)
+            - Breakout or breakdown signals
+            - Confluence zones where multiple indicators align
+            
+            **Trading Insights:**
+            - Immediate price direction bias (next 24 hours)
+            - Key levels to watch for entries and exits
+            - Stop-loss placement recommendations
+            - Risk-reward assessment
+            - Potential price targets
+            
+            **Market Context:**
+            - Current market phase (trending vs ranging)
+            - Volatility assessment
+            - Strength of current move
+            - Potential reversal or continuation signals
+            
+            Analysis Focus: {analysis_focus}
+            
+            Provide specific, actionable insights based on what you observe in the chart.
+            Use actual price levels and percentages where visible.
+            """,
+            expected_output="""A detailed professional chart analysis report with:
+            - Clear trend assessment
+            - Specific support/resistance levels
+            - Technical indicator interpretations
+            - Pattern recognition insights
+            - Actionable trading recommendations
+            - Risk management guidance""",
+            agent=chart_analyst
+        )
+        
+        # Create and run the crew for chart analysis
+        analysis_crew = Crew(
+            agents=[chart_analyst],
+            tasks=[analysis_task],
+            verbose=True
+        )
+        
+        # Execute the multimodal analysis
+        print(f"🔍 Starting AI-powered chart analysis for {crypto_name}...")
+        result = analysis_crew.kickoff()
+        
+        # Format the response with additional metadata
+        formatted_response = f"""
+# 📊 AI-Powered Chart Analysis for {crypto_name}
 
-**Chart Components Analyzed:**
-✅ OHLC Candlestick patterns with price action
-✅ Moving Averages (SMA 20, SMA 50, RMA 21) for trend analysis
-✅ Bollinger Bands for volatility and squeeze detection
-✅ RSI momentum oscillator for overbought/oversold conditions
-✅ MACD for trend confirmation and divergence signals
-✅ Volume analysis for validation of price movements
+## 🎯 Analysis Summary
+{result.raw if hasattr(result, 'raw') else str(result)}
 
-**🔍 Visual Pattern Recognition:**
+---
 
-**1. Trend Structure Analysis:**
-- **Primary Trend Direction:** Analyze the overall slope of moving averages and price action
-- **Trend Strength:** Evaluate the consistency of higher highs/higher lows (uptrend) or lower highs/lower lows (downtrend)
-- **Trend Line Breaks:** Identify potential breakouts from established trend channels
-- **Support/Resistance Zones:** Visual identification of key price levels where reversals occur
+## 📈 Chart Analysis Metadata
+- **Chart File:** {os.path.basename(chart_path)}
+- **Analysis Method:** CrewAI Multimodal Agent with Visual Recognition
+- **Chart Data Available:** {len(chart_data)} bytes (base64 encoded)
+- **Analysis Context:** {analysis_context if analysis_context else "Comprehensive technical analysis"}
 
-**2. Candlestick Pattern Confluence:**
-- **Reversal Signals:** Look for engulfing patterns, dojis, and hammer formations at key levels
-- **Continuation Patterns:** Identify flags, pennants, and ascending/descending triangles
-- **Volume Confirmation:** Assess whether volume supports the candlestick patterns
-- **Pattern Completion:** Determine if patterns are forming or have been completed
+## 🔍 Visual Analysis Capabilities Applied
+- ✅ Multi-panel chart interpretation (Price, RSI, Volume)
+- ✅ Candlestick pattern recognition
+- ✅ Technical indicator signal analysis
+- ✅ Support/resistance level identification
+- ✅ Trend and momentum assessment
+- ✅ Visual pattern recognition
+- ✅ Color-coded indicator analysis
 
-**3. Moving Average Dynamics:**
-- **MA Crossovers:** Visual confirmation of golden cross (bullish) or death cross (bearish) formations
-- **Price-MA Relationship:** Analyze whether price is consistently above/below key moving averages
-- **MA Convergence/Divergence:** Identify when moving averages are coming together or spreading apart
-- **Dynamic Support/Resistance:** How moving averages act as support in uptrends or resistance in downtrends
+## 💡 Next Steps
+1. Consider the technical levels and signals identified
+2. Monitor the key price levels mentioned for entry/exit opportunities
+3. Apply proper risk management based on the recommendations
+4. Re-analyze if market conditions change significantly
 
-**4. Volatility and Bollinger Band Analysis:**
-- **Band Squeeze:** Visual identification of low volatility periods preceding major moves
-- **Band Expansion:** Recognition of high volatility periods and potential reversal zones
-- **Price Position:** Evaluate if price is hugging upper band (bullish momentum) or lower band (bearish momentum)
-- **Band Bounces:** Identify rebounds from upper or lower Bollinger Bands
-
-**5. Momentum Divergence Detection:**
-- **Price vs. RSI:** Visual comparison of price trends versus RSI trends for divergence signals
-- **MACD Divergence:** Identify when price makes new highs/lows but MACD doesn't confirm
-- **Volume Divergence:** Spot when price movements aren't supported by proportional volume changes
-- **Hidden Divergences:** Advanced pattern recognition for continuation signals
-
-**📊 Risk-Reward Visual Assessment:**
-
-**Entry Zone Identification:**
-- **Confluence Areas:** Where multiple technical indicators align for high-probability entries
-- **Breakout Levels:** Clear visualization of key resistance/support breaks
-- **Pullback Opportunities:** Identification of healthy retracements in trending markets
-
-**Stop-Loss Placement:**
-- **Technical Stops:** Logical placement below/above key support/resistance levels
-- **Volatility-Based Stops:** Using ATR and Bollinger Band width for dynamic stop placement
-- **Pattern-Based Stops:** Stops based on invalidation of chart patterns
-
-**Profit Targets:**
-- **Extension Levels:** Using previous swing measurements for profit projections
-- **Resistance Clusters:** Multiple resistance levels that could act as profit-taking zones
-- **Risk-Reward Ratios:** Visual assessment of potential profit versus risk
-
-**🎯 Specific Analysis Focus:**
-{analysis_context if analysis_context else "Comprehensive multi-timeframe analysis with emphasis on confluence zones and risk management"}
-
-**⚡ Key Visual Signals Currently Visible:**
-
-**Bullish Indicators on Chart:**
-- Price above key moving averages
-- Ascending triangle or flag patterns
-- RSI showing bullish divergence
-- MACD histogram increasing
-- Volume supporting upward moves
-- Bollinger Band squeeze preceding breakout
-
-**Bearish Indicators on Chart:**
-- Price below key moving averages
-- Descending triangle or bear flag patterns
-- RSI showing bearish divergence
-- MACD histogram decreasing
-- Volume supporting downward moves
-- Rejection at upper Bollinger Band
-
-**🔮 Chart-Based Forecast Enhancement:**
-
-**Short-Term (1-7 days):**
-Based on immediate chart patterns, candlestick formations, and momentum indicators
-
-**Medium-Term (1-4 weeks):**
-Derived from moving average trends, Bollinger Band position, and pattern completion
-
-**Long-Term (1-3 months):**
-Assessed through major trend structure, volume patterns, and macro technical levels
-
-**⚠️ Risk Management Insights:**
-- **Volatility Assessment:** Current market volatility based on Bollinger Band width and ATR
-- **Market Phase:** Trending vs. ranging market identification for strategy selection
-- **False Breakout Risk:** Evaluation of potential for fake moves based on volume and momentum
-- **News Impact Zones:** Technical levels where fundamental news could cause outsized moves
-
-**💡 Actionable Chart Recommendations:**
-1. **Wait for Confirmation:** If patterns are forming but incomplete
-2. **Scale Into Position:** If multiple timeframes align
-3. **Take Partial Profits:** If approaching key resistance with momentum divergence
-4. **Tighten Stops:** If showing signs of trend weakening
-5. **Stay Patient:** If consolidating within defined ranges
-
-**Chart Analysis Status:** ✅ Complete visual analysis performed with {len(chart_data)} bytes of chart data available for reference.
+*Analysis powered by CrewAI multimodal agents with advanced visual recognition capabilities.*
 """
+        
+        print(f"✅ Completed AI chart analysis for {crypto_name}")
+        return formatted_response
+        
+    except Exception as e:
+        error_msg = f"""
+❌ **Error in AI Chart Analysis for {crypto_name}**
+
+An error occurred during the multimodal chart analysis: {str(e)}
+
+**Fallback Analysis Available:**
+- Chart data is available ({len(chart_data)} bytes) but AI analysis failed
+- Chart file location: {chart_path}
+- You can try running the analysis again or check the chart manually
+
+**Basic Chart Information:**
+- Cryptocurrency: {crypto_name}
+- Chart Type: Multi-panel technical analysis (Candlesticks + Indicators)
+- Contains: Price action, RSI, Volume, Moving Averages
+- Analysis Context: {analysis_context if analysis_context else "General technical analysis"}
+
+**Recommendations:**
+1. Verify the chart file exists and is accessible
+2. Check system requirements for multimodal analysis
+3. Try running technical analysis again to regenerate the chart
+4. Consider manual chart interpretation if AI analysis continues to fail
+"""
+        print(f"❌ Error in chart analysis: {e}")
+        import traceback
+        print(f"Traceback: {traceback.format_exc()}")
+        return error_msg
+
+
+def create_multimodal_chart_analyst(crypto_name: str) -> Agent:
+    """
+    Create a specialized multimodal agent for chart analysis.
     
-    return analysis_summary
+    Args:
+        crypto_name: Name of the cryptocurrency for personalized analysis
+        
+    Returns:
+        Configured multimodal Agent for chart analysis
+    """
+    return Agent(
+        role=f"{crypto_name} Technical Chart Specialist",
+        goal=f"Provide expert visual analysis of {crypto_name} technical charts with actionable insights",
+        backstory=f"""You are a specialized technical analyst focused on {crypto_name} with deep expertise in:
+        
+        📊 **Chart Analysis Skills:**
+        - Advanced candlestick pattern recognition
+        - Multi-timeframe trend analysis  
+        - Support/resistance level identification
+        - Volume profile analysis
+        - Technical indicator interpretation
+        
+        🎯 **Specializations:**
+        - {crypto_name} market behavior patterns
+        - Cryptocurrency-specific volatility analysis
+        - DeFi and institutional flow analysis
+        - Risk management in crypto markets
+        - Entry/exit timing optimization
+        
+        🔍 **Visual Recognition Capabilities:**
+        - Chart pattern detection and classification
+        - Color-coded indicator analysis
+        - Multi-panel chart interpretation
+        - Price action confluence identification
+        - Market structure analysis
+        
+        You provide clear, actionable insights that help traders make informed decisions.""",
+        multimodal=True,
+        verbose=True,
+        allow_delegation=False
+    )
+
+
+def analyze_chart_with_context(crypto_name: str, 
+                             specific_questions: list = None,
+                             risk_tolerance: str = "moderate") -> str:
+    """
+    Enhanced chart analysis with specific questions and risk context.
+    
+    Args:
+        crypto_name: Cryptocurrency to analyze
+        specific_questions: List of specific questions to address
+        risk_tolerance: Risk tolerance level (conservative, moderate, aggressive)
+        
+    Returns:
+        Targeted chart analysis addressing specific concerns
+    """
+    
+    chart_path = get_current_chart_path()
+    if not chart_path or not os.path.exists(chart_path):
+        return f"No chart available for {crypto_name}. Generate technical analysis first."
+    
+    # Create specialized agent
+    analyst = create_multimodal_chart_analyst(crypto_name)
+    
+    # Build context-specific questions
+    questions_text = ""
+    if specific_questions:
+        questions_text = "**Specific Questions to Address:**\n"
+        for i, question in enumerate(specific_questions, 1):
+            questions_text += f"{i}. {question}\n"
+    
+    # Risk-adjusted analysis prompt
+    risk_context = {
+        "conservative": "Focus on high-probability setups with strong confirmation signals. Emphasize capital preservation.",
+        "moderate": "Balance opportunity recognition with risk management. Consider both aggressive and conservative entries.",
+        "aggressive": "Identify high-reward opportunities even with higher risk. Focus on momentum and breakout trades."
+    }
+    
+    risk_guidance = risk_context.get(risk_tolerance, risk_context["moderate"])
+    
+    # Create targeted analysis task
+    task = Task(
+        description=f"""
+        Analyze the {crypto_name} chart at {chart_path} with specific focus on:
+        
+        {questions_text}
+        
+        **Risk Profile:** {risk_tolerance.title()}
+        **Risk Guidance:** {risk_guidance}
+        
+        Provide chart analysis that specifically addresses the questions above while
+        considering the risk tolerance level. Include visual observations from the chart
+        and specific price levels or percentages where applicable.
+        """,
+        expected_output=f"Targeted chart analysis for {crypto_name} addressing specific questions with risk-appropriate recommendations",
+        agent=analyst
+    )
+    
+    # Execute analysis
+    crew = Crew(agents=[analyst], tasks=[task], verbose=True)
+    result = crew.kickoff()
+    
+    return f"""
+# 🎯 Targeted Chart Analysis: {crypto_name}
+
+## Risk Profile: {risk_tolerance.title()}
+
+{result.raw if hasattr(result, 'raw') else str(result)}
+
+---
+*Analysis tailored for {risk_tolerance} risk tolerance with multimodal chart interpretation*
+"""
 
 
 class ChartAnalysisTool:
-    """Wrapper class for the chart analysis tool."""
+    """Wrapper class for the enhanced multimodal chart analysis tool."""
     
     def __init__(self):
         self.name = "chart_analysis_tool"
         self.description = """
-        Analyzes generated technical analysis charts and provides advanced visual insights.
-        Focuses on chart patterns, visual confirmation signals, multi-timeframe analysis,
-        confluence zones, risk-reward assessment, and actionable trading recommendations.
-        Helps identify optimal entry/exit points and risk management strategies.
+        Advanced multimodal chart analysis tool that uses AI agents to interpret technical analysis charts.
+        Provides visual pattern recognition, technical indicator analysis, support/resistance identification,
+        and actionable trading insights by analyzing generated chart images using computer vision capabilities.
         """
     
     def _run(self, crypto_name: str, analysis_context: str = "") -> str:
         """Legacy interface for the tool."""
-        return chart_analysis_tool.func(crypto_name, analysis_context)
+        return chart_analysis_tool.func(analysis_context)
 
 
 def create_chart_analysis_tool():
-    """Create and return a chart analysis tool instance."""
+    """Create and return a multimodal chart analysis tool instance."""
     return chart_analysis_tool 

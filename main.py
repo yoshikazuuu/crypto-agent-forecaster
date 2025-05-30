@@ -417,12 +417,9 @@ def test(
         
         # Test technical analysis
         console.print("3. Testing technical analysis...")
-        if market_data and "error" not in market_data:
-            tech_tool = TechnicalAnalysisTool()
-            tech_analysis = tech_tool._run(ohlcv_data=market_data, crypto_name=crypto)
-            console.print("   ✅ Technical analysis working")
-        else:
-            console.print("   ❌ Technical analysis failed (no market data)")
+        tech_tool = TechnicalAnalysisTool()
+        tech_analysis = tech_tool._run(crypto_name=crypto, days=days)
+        console.print("   ✅ Technical analysis working")
         
         console.print("\n✅ All tests passed!", style="bold green")
         

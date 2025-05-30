@@ -11,27 +11,21 @@ from datetime import datetime
 from pathlib import Path
 
 
-def truncate_json_for_logging(data: Any, max_length: int = 500) -> str:
+def truncate_json_for_logging(data: Any, max_length: int = None) -> str:
     """
-    Truncate JSON data for logging purposes.
+    Convert data to JSON string without any truncation.
     
     Args:
-        data: Data to be JSON serialized and truncated
-        max_length: Maximum length of the output string
+        data: Data to be JSON serialized
+        max_length: Ignored - kept for compatibility
         
     Returns:
-        Truncated JSON string suitable for logging
+        Full JSON string
     """
     try:
-        json_str = json.dumps(data, indent=2)
-        if len(json_str) <= max_length:
-            return json_str
-        
-        # Truncate and add indicator
-        truncated = json_str[:max_length-10] + "...[TRUNCATED]"
-        return truncated
+        return json.dumps(data, indent=2)
     except (TypeError, ValueError):
-        return str(data)[:max_length]
+        return str(data)
 
 
 def hide_base64_from_logs(text: str) -> str:
@@ -57,20 +51,20 @@ def hide_base64_from_logs(text: str) -> str:
     return cleaned_text
 
 
-def sanitize_for_logging(data: Any, max_json_length: int = 500) -> str:
+def sanitize_for_logging(data: Any, max_json_length: int = None) -> str:
     """
-    Sanitize data for logging by truncating JSON and hiding base64.
+    Sanitize data for logging by hiding base64 only (no truncation).
     
     Args:
         data: Data to sanitize
-        max_json_length: Maximum length for JSON output
+        max_json_length: Ignored - kept for compatibility
         
     Returns:
         Sanitized string suitable for logging
     """
     # First convert to string/JSON
     if isinstance(data, (dict, list)):
-        text = truncate_json_for_logging(data, max_json_length)
+        text = truncate_json_for_logging(data)
     else:
         text = str(data)
     
@@ -248,8 +242,9 @@ class LogCapture:
     def log(self, message: str):
         """Add a log message."""
         timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        sanitized_message = sanitize_for_logging(message)
-        log_entry = f"[{timestamp}] {sanitized_message}"
+        # Only hide base64 data, don't truncate anything else
+        clean_message = hide_base64_from_logs(str(message))
+        log_entry = f"[{timestamp}] {clean_message}"
         self.logs.append(log_entry)
     
     def get_logs(self) -> str:

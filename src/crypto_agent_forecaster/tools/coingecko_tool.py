@@ -113,29 +113,23 @@ def coingecko_tool(query: str) -> str:
             
         try:
             first_ts = df[column_name].iloc[0]
-            print(f"🔍 DEBUG: Converting {column_name}, first value: {first_ts}, type: {type(first_ts)}")
             
             if isinstance(first_ts, str):
                 # ISO format string
                 df['datetime'] = pd.to_datetime(df[column_name])
-                print(f"🔍 DEBUG: Converted ISO format to datetime")
             elif pd.api.types.is_numeric_dtype(df[column_name]):
                 # Check if it's milliseconds or seconds
                 if first_ts > 1e10:
                     # Milliseconds
                     df['datetime'] = pd.to_datetime(df[column_name], unit='ms')
-                    print(f"🔍 DEBUG: Converted milliseconds to datetime")
                 else:
                     # Seconds
                     df['datetime'] = pd.to_datetime(df[column_name], unit='s')
-                    print(f"🔍 DEBUG: Converted seconds to datetime")
             else:
                 # Fallback: try to parse as string
                 df['datetime'] = pd.to_datetime(df[column_name])
-                print(f"🔍 DEBUG: Fallback conversion to datetime")
                 
             # Log the conversion result
-            print(f"🔍 DEBUG: Timestamp range after conversion: {df['datetime'].min()} to {df['datetime'].max()}")
             
         except Exception as e:
             print(f"⚠️ ERROR: Timestamp conversion failed: {e}")
@@ -162,7 +156,6 @@ def coingecko_tool(query: str) -> str:
             data = response.json()
             if crypto_id in data:
                 current_price = data[crypto_id].get("usd", 0)
-                print(f"🔍 DEBUG: Raw current price from API: ${current_price:,}")
                 
                 # Sanity check for Bitcoin specifically
                 if crypto_id == "bitcoin" and (current_price < 20000 or current_price > 200000):
@@ -189,7 +182,6 @@ def coingecko_tool(query: str) -> str:
             url = f"{Config.COINGECKO_BASE_URL}/coins/{crypto_id}/market_chart"
             params = {"vs_currency": "usd", "days": days}
             
-            print(f"🔍 DEBUG: Fetching OHLCV data for {crypto_id}, {days} days")
             
             response = session.get(url, params=params)
             response.raise_for_status()
@@ -204,8 +196,6 @@ def coingecko_tool(query: str) -> str:
             if not prices:
                 return {"error": "No price data available"}
             
-            print(f"🔍 DEBUG: Raw prices sample: {prices[:3]}")
-            print(f"🔍 DEBUG: Raw volumes sample: {volumes[:3]}")
             
             # Convert to OHLCV format with proper volume data
             df_data = []
@@ -226,9 +216,6 @@ def coingecko_tool(query: str) -> str:
             merged_df['timestamp'] = merged_df['timestamp_price']
             merged_df = merged_df.drop(['timestamp_price', 'timestamp_volume'], axis=1, errors='ignore')
             
-            print(f"🔍 DEBUG: Merged data shape: {merged_df.shape}")
-            print(f"🔍 DEBUG: Price range: ${merged_df['price'].min():.2f} - ${merged_df['price'].max():.2f}")
-            print(f"🔍 DEBUG: Datetime range: {merged_df['datetime'].min()} to {merged_df['datetime'].max()}")
             
             # Enhanced data grouping for better technical analysis
             if days <= 1:
@@ -266,62 +253,56 @@ def coingecko_tool(query: str) -> str:
             # Sort by period to ensure chronological order
             grouped = grouped.sort_values('period')
             
-            print(f"🔍 DEBUG: Grouped data shape: {grouped.shape}")
             if not grouped.empty:
-                print(f"🔍 DEBUG: Latest close price: ${grouped['close'].iloc[-1]:.2f}")
-                print(f"🔍 DEBUG: Latest period: {grouped['period'].iloc[-1]}")
-            
-            # Ensure we have enough data points for technical indicators
-            # If we don't have enough, try to get more data
-            min_required_points = 50  # Need at least 50 points for proper MACD (26 + 24 buffer)
-            if len(grouped) < min_required_points and days < 90:
-                print(f"🔍 DEBUG: Insufficient data points ({len(grouped)}), fetching more...")
-                # Recursively try to get more data
-                return _get_ohlcv_data(crypto_id, min(days * 2, 90), session)
-            
-            # Convert to serializable format
-            ohlcv_data = []
-            for _, row in grouped.iterrows():
-                try:
-                    # Use the period directly for timestamp (it's already a datetime)
-                    timestamp_str = row['period'].isoformat()
+                # Ensure we have enough data points for technical indicators
+                # If we don't have enough, try to get more data
+                min_required_points = 50  # Need at least 50 points for proper MACD (26 + 24 buffer)
+                if len(grouped) < min_required_points and days < 90:
+                    # Recursively try to get more data
+                    return _get_ohlcv_data(crypto_id, min(days * 2, 90), session)
+                
+                # Convert to serializable format
+                ohlcv_data = []
+                for _, row in grouped.iterrows():
+                    try:
+                        # Use the period directly for timestamp (it's already a datetime)
+                        timestamp_str = row['period'].isoformat()
+                        
+                        ohlcv_data.append({
+                            "timestamp": timestamp_str,
+                            "open": float(row["open"]) if pd.notna(row["open"]) else 0.0,
+                            "high": float(row["high"]) if pd.notna(row["high"]) else 0.0,
+                            "low": float(row["low"]) if pd.notna(row["low"]) else 0.0,
+                            "close": float(row["close"]) if pd.notna(row["close"]) else 0.0,
+                            "volume": float(row["volume"]) if pd.notna(row["volume"]) else 0.0
+                        })
+                    except Exception as e:
+                        print(f"⚠️ ERROR: Error processing row: {e}")
+                        continue
+                
+                # Sort by timestamp to ensure chronological order (oldest first, standard for financial charts)
+                ohlcv_data.sort(key=lambda x: x['timestamp'])
+                
+                if ohlcv_data:
+                    # Add some metadata about the data quality
+                    total_volume = sum([item['volume'] for item in ohlcv_data])
+                    has_volume_data = total_volume > 0
+                    avg_volume = total_volume / len(ohlcv_data) if ohlcv_data else 0
                     
-                    ohlcv_data.append({
-                        "timestamp": timestamp_str,
-                        "open": float(row["open"]) if pd.notna(row["open"]) else 0.0,
-                        "high": float(row["high"]) if pd.notna(row["high"]) else 0.0,
-                        "low": float(row["low"]) if pd.notna(row["low"]) else 0.0,
-                        "close": float(row["close"]) if pd.notna(row["close"]) else 0.0,
-                        "volume": float(row["volume"]) if pd.notna(row["volume"]) else 0.0
-                    })
-                except Exception as e:
-                    print(f"⚠️ ERROR: Error processing row: {e}")
-                    continue
+                    return {
+                        "cryptocurrency": crypto_id,
+                        "days": days,
+                        "ohlcv_data": ohlcv_data,
+                        "data_points": len(ohlcv_data),
+                        "has_volume_data": has_volume_data,
+                        "total_volume": total_volume,
+                        "average_volume": avg_volume,
+                        "data_source": "market_chart_api",
+                        "resolution": resolution
+                    }
             
-            # Sort by timestamp to ensure chronological order (oldest first, standard for financial charts)
-            ohlcv_data.sort(key=lambda x: x['timestamp'])
-            
-            print(f"🔍 DEBUG: Final OHLCV data points: {len(ohlcv_data)}")
-            if ohlcv_data:
-                print(f"🔍 DEBUG: First record: {ohlcv_data[0]['timestamp']} - Close: ${ohlcv_data[0]['close']:.2f}")
-                print(f"🔍 DEBUG: Last record: {ohlcv_data[-1]['timestamp']} - Close: ${ohlcv_data[-1]['close']:.2f}")
-            
-            # Add some metadata about the data quality
-            total_volume = sum([item['volume'] for item in ohlcv_data])
-            has_volume_data = total_volume > 0
-            avg_volume = total_volume / len(ohlcv_data) if ohlcv_data else 0
-            
-            return {
-                "cryptocurrency": crypto_id,
-                "days": days,
-                "ohlcv_data": ohlcv_data,
-                "data_points": len(ohlcv_data),
-                "has_volume_data": has_volume_data,
-                "total_volume": total_volume,
-                "average_volume": avg_volume,
-                "data_source": "market_chart_api",
-                "resolution": resolution
-            }
+            # If we reach here, there was no valid data
+            return {"error": "No valid OHLCV data found"}
             
         except requests.RequestException as e:
             return {"error": f"API request failed: {str(e)}"}

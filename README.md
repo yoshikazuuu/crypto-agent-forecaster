@@ -320,3 +320,189 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 ---
 
 **⚠️ Disclaimer**: This software is for educational and research purposes only. Cryptocurrency trading involves substantial risk of loss. Always do your own research and never invest more than you can afford to lose.
+
+## Features
+
+- Real-time cryptocurrency data retrieval
+- Advanced technical analysis with visual charts
+- **NEW: Multimodal chart analysis using AI agents**
+- Sentiment analysis from multiple sources
+- Comprehensive market forecasting
+
+## Installation
+
+```bash
+pip install -r requirements.txt
+```
+
+## Usage
+
+### Basic Technical Analysis
+
+```python
+from crypto_agent_forecaster.tools.technical_analysis_tool import technical_analysis_tool
+from crypto_agent_forecaster.tools.chart_analysis_tool import chart_analysis_tool
+
+# Perform technical analysis (fetches data automatically and generates chart)
+analysis = technical_analysis_tool(crypto_name="bitcoin", days=7)
+print(analysis)
+
+# Analyze the generated chart using AI (multimodal analysis)
+chart_analysis = chart_analysis_tool(crypto_name="bitcoin", analysis_context="Focus on 24-hour price prediction")
+print(chart_analysis)
+```
+
+### Using with CrewAI Flows (Recommended)
+
+```python
+from crewai.flow.flow import Flow, listen, start
+from crewai import Agent, Task, Crew
+from pydantic import BaseModel
+
+class CryptoAnalysisState(BaseModel):
+    crypto_name: str = ""
+    technical_analysis: str = ""
+    chart_analysis: str = ""
+    final_forecast: str = ""
+
+class CryptoAnalysisFlow(Flow[CryptoAnalysisState]):
+    
+    @start()
+    def initialize_analysis(self):
+        self.state.crypto_name = "bitcoin"
+        return "Analysis initialized"
+    
+    @listen(initialize_analysis)
+    def perform_technical_analysis(self, _):
+        # Use technical_analysis_tool (automatically fetches fresh data)
+        from crypto_agent_forecaster.tools.technical_analysis_tool import technical_analysis_tool
+        
+        result = technical_analysis_tool(
+            crypto_name=self.state.crypto_name,
+            days=30  # Fetch 30 days of data for analysis
+        )
+        self.state.technical_analysis = result
+        return "Technical analysis completed"
+
+# Run the flow
+flow = CryptoAnalysisFlow()
+forecast = flow.kickoff()
+print(f"Final Forecast: {forecast}")
+```
+
+## Key Features of the Updated Tools
+
+### Technical Analysis Tool (`technical_analysis_tool`)
+
+- **Enhanced Parameter Handling**: Now accepts both JSON strings and dict objects
+- **Improved Chart Generation**: Creates high-quality TradingView-style charts
+- **File-based Chart Storage**: Saves charts as temporary files for multimodal access
+- **Comprehensive Indicators**: RSI, MACD, Moving Averages, Bollinger Bands, Volume analysis
+
+### Chart Analysis Tool (`chart_analysis_tool`) - NEW MULTIMODAL
+
+- **AI-Powered Visual Analysis**: Uses CrewAI multimodal agents to actually "see" and analyze charts
+- **Computer Vision Capabilities**: Recognizes patterns, trends, and technical formations visually
+- **Contextual Analysis**: Accepts specific analysis context for targeted insights
+- **Expert Agent Integration**: Creates specialized chart analysis agents with domain expertise
+
+### Multimodal Agent Features
+
+The chart analysis tool now uses CrewAI's multimodal capabilities:
+
+```python
+# Create a multimodal agent
+chart_analyst = Agent(
+    role="Expert Technical Chart Analyst",
+    goal="Analyze technical charts with visual recognition",
+    backstory="World-class technical analyst with pattern recognition expertise",
+    multimodal=True  # This enables image analysis capabilities
+)
+
+# The agent can now actually "see" and interpret chart images
+task = Task(
+    description="Analyze the chart image and identify key patterns, trends, and trading opportunities",
+    expected_output="Detailed visual chart analysis with specific insights",
+    agent=chart_analyst
+)
+```
+
+## Error Handling and Fallbacks
+
+Both tools include comprehensive error handling:
+
+- **Parameter validation** with clear error messages
+- **Graceful degradation** when chart generation fails
+- **Fallback charts** when advanced charting libraries aren't available
+- **Multimodal fallbacks** when AI chart analysis fails
+
+## Advanced Usage
+
+### Custom Risk-Adjusted Analysis
+
+```python
+from crypto_agent_forecaster.tools.chart_analysis_tool import analyze_chart_with_context
+
+# Risk-adjusted analysis
+analysis = analyze_chart_with_context(
+    crypto_name="bitcoin",
+    specific_questions=[
+        "What are the key support levels for the next 24 hours?",
+        "Is this a good entry point for a long position?",
+        "What's the probability of a breakout above current resistance?"
+    ],
+    risk_tolerance="conservative"  # conservative, moderate, or aggressive
+)
+```
+
+### Integration with External Data
+
+```python
+# Example with CoinGecko data
+from crypto_agent_forecaster.tools.coingecko_tool import coingecko_tool
+
+# Fetch fresh data
+data_result = coingecko_tool(query="bitcoin ohlcv 24 hours horizon")
+ohlcv_data = data_result["ohlcv_data"]
+
+# Perform analysis
+technical_result = technical_analysis_tool(
+    ohlcv_data=ohlcv_data,
+    crypto_name="bitcoin"
+)
+
+# AI chart analysis
+chart_result = chart_analysis_tool(
+    crypto_name="bitcoin",
+    analysis_context="Focus on momentum indicators and volume confirmation"
+)
+```
+
+## Requirements
+
+- Python 3.8+
+- CrewAI with multimodal support
+- matplotlib, mplfinance for charting
+- pandas, numpy for data processing
+- ta (Technical Analysis library)
+
+## Configuration
+
+Configure technical analysis parameters in `src/crypto_agent_forecaster/config.py`:
+
+```python
+TA_INDICATORS = {
+    "sma_periods": [20, 50],
+    "ema_periods": [12, 26],
+    "rsi_period": 14,
+    "macd_fast": 12,
+    "macd_slow": 26,
+    "macd_signal": 9,
+    "bb_period": 20,
+    "bb_std": 2
+}
+```
+
+## License
+
+MIT License

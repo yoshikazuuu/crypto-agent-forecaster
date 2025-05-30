@@ -28,9 +28,9 @@ def create_technical_analysis_agent() -> Agent:
     
     return Agent(
         role="Cryptocurrency Technical Analysis and Chart Pattern Specialist",
-        goal="To process historical OHLCV data, calculate key technical indicators, "
+        goal="To fetch fresh OHLCV data for any cryptocurrency, process it to calculate key technical indicators, "
              "identify significant candlestick patterns, generate comprehensive visual charts, "
-             "and provide both numerical and visual analysis insights for a target cryptocurrency.",
+             "and provide both numerical and visual analysis insights.",
         backstory="""You are a seasoned technical analyst with extensive experience in 
         cryptocurrency markets. You understand the nuances of crypto price action, which 
         can be more volatile and sentiment-driven than traditional markets.
@@ -45,10 +45,12 @@ def create_technical_analysis_agent() -> Agent:
         fundamental and sentiment analysis for optimal results. You're particularly adept 
         at identifying confluence points where multiple technical signals align.
         
-        You always generate visual charts to accompany your analysis and can provide 
-        additional chart-based insights to enhance your technical assessment. Your visual 
-        analysis skills help identify patterns that may not be immediately apparent from 
-        numerical indicators alone.""",
+        You can fetch fresh market data for any cryptocurrency and always generate visual 
+        charts to accompany your analysis. Your technical analysis tool automatically 
+        retrieves the latest OHLCV data, so you can analyze any cryptocurrency by simply 
+        specifying its name and the desired analysis period. Your visual analysis skills 
+        help identify patterns that may not be immediately apparent from numerical 
+        indicators alone.""",
         verbose=False,
         allow_delegation=False,
         tools=[technical_tool, chart_analysis_tool],
