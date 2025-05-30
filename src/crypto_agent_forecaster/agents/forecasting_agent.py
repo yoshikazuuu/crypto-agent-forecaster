@@ -4,10 +4,22 @@ Forecasting Agent that orchestrates and fuses sentiment and technical analysis.
 
 from crewai import Agent
 from ..llm_factory import LLMFactory
+from ..config import Config
 
 
 def create_crypto_forecasting_agent() -> Agent:
     """Create the CryptoForecastingAgent."""
+    
+    # Get agent-specific LLM configuration
+    agent_config = Config.get_agent_llm_config("forecasting")
+    
+    # Create LLM with configured settings
+    llm = LLMFactory.create_llm(
+        provider=Config.DEFAULT_LLM_PROVIDER,
+        model=Config.DEFAULT_LLM_MODEL,
+        temperature=agent_config.get("temperature", 0.3),
+        max_tokens=agent_config.get("max_tokens", 4000)
+    )
     
     return Agent(
         role="Lead Multimodal Crypto Forecaster and Synthesizer",
@@ -32,10 +44,10 @@ def create_crypto_forecasting_agent() -> Agent:
         Your forecasts are always accompanied by clear reasoning and appropriate 
         confidence levels. You understand that in the volatile crypto market, 
         humility and risk awareness are as important as analytical skill.""",
-        verbose=True,
-        allow_delegation=True,  # Can delegate to other agents
+        verbose=False,
+        allow_delegation=False,
         tools=[],  # Uses other agents' outputs rather than direct tools
-        llm=LLMFactory.create_llm(temperature=0.3)  # Balanced temperature for reasoning
+        llm=llm
     )
 
 

@@ -5,10 +5,25 @@ Technical Analysis Agent for cryptocurrency chart patterns and indicators.
 from crewai import Agent
 from ..tools import create_technical_analysis_tool
 from ..llm_factory import LLMFactory
+from ..config import Config
 
 
 def create_technical_analysis_agent() -> Agent:
     """Create the TechnicalAnalysisAgent."""
+    
+    # Create the tool instance
+    technical_tool = create_technical_analysis_tool()
+    
+    # Get agent-specific LLM configuration
+    agent_config = Config.get_agent_llm_config("technical")
+    
+    # Create LLM with configured settings
+    llm = LLMFactory.create_llm(
+        provider=Config.DEFAULT_LLM_PROVIDER,
+        model=Config.DEFAULT_LLM_MODEL,
+        temperature=agent_config.get("temperature", 0.1),
+        max_tokens=agent_config.get("max_tokens", 2500)
+    )
     
     return Agent(
         role="Cryptocurrency Technical Analysis and Chart Pattern Specialist",
@@ -28,10 +43,10 @@ def create_technical_analysis_agent() -> Agent:
         You understand that in crypto markets, technical analysis must be combined with 
         fundamental and sentiment analysis for optimal results. You're particularly adept 
         at identifying confluence points where multiple technical signals align.""",
-        verbose=True,
+        verbose=False,
         allow_delegation=False,
-        tools=[create_technical_analysis_tool()],
-        llm=LLMFactory.create_llm(temperature=0.1)  # Lower temperature for precise technical analysis
+        tools=[technical_tool],
+        llm=llm
     )
 
 

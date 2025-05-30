@@ -18,6 +18,11 @@ An advanced cryptocurrency forecasting tool that leverages hosted Large Language
   - Technical pattern recognition
   - Multimodal signal fusion
 - **💻 User-Friendly CLI**: Rich terminal interface with beautiful output formatting
+- **🗂️ Automatic Result Management**:
+  - Auto-saves all results to organized folders
+  - Technical analysis charts saved as PNG files
+  - Complete run logs with sanitized output
+  - Clean logging (no verbose JSON or base64 spam)
 
 ## 🚀 Quick Start
 
@@ -93,8 +98,8 @@ python main.py forecast ethereum --horizon "3 days"
 # Use specific LLM provider
 python main.py forecast solana --provider anthropic
 
-# Save results to file
-python main.py forecast bitcoin --save results.json
+# All results are automatically saved to results/ folder
+# with charts, logs, and structured data
 
 # Get help
 python main.py --help
@@ -218,6 +223,7 @@ Example output:
 │ Confidence       │ MEDIUM                        │
 │ Forecast Horizon │ 24 hours                      │
 │ Timestamp        │ 2024-01-15T10:30:00           │
+│ Charts Generated │ ✅ 1                          │
 └──────────────────┴───────────────────────────────┘
 
 🧠 Analysis & Reasoning
@@ -225,6 +231,28 @@ Technical analysis shows bullish momentum with RSI at 45
 and MACD crossing above signal line. 4chan sentiment 
 reveals moderate optimism with limited FUD detection...
 ```
+
+## 📁 Results Management
+
+Every forecast run automatically creates a dedicated folder in `results/` with:
+
+### Folder Structure
+```
+results/
+└── bitcoin_20241215_143052/
+    ├── README.md                # Summary with key metrics
+    ├── forecast_results.json    # Complete structured data
+    ├── run_logs.txt            # Sanitized execution logs
+    └── charts/
+        └── technical_analysis_chart.png  # Generated charts
+```
+
+### Features
+- **🧹 Clean Logging**: No verbose JSON or base64 spam in console
+- **📊 Chart Generation**: Technical analysis charts saved as PNG
+- **📄 Structured Data**: Complete results in JSON format
+- **📝 Run Logs**: Full execution history with timestamps
+- **📋 Summary**: Markdown summary with embedded charts
 
 ## ⚠️ Important Considerations
 

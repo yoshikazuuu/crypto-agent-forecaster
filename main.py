@@ -3,6 +3,12 @@
 CryptoAgentForecaster - CLI Application
 
 A multimodal cryptocurrency forecasting system using hosted LLMs and agent-based architecture.
+
+Features:
+- Clean, truncated logging (no verbose JSON or base64 spam)
+- Automatic result saving to organized folders for each run
+- Technical analysis charts saved as PNG files
+- Complete run logs and forecast results in structured directories
 """
 
 import typer
@@ -91,16 +97,17 @@ def forecast(
     horizon: str = typer.Option("24 hours", "--horizon", "-h", help="Forecast time horizon"),
     provider: Optional[str] = typer.Option(None, "--provider", "-p", help="LLM provider (openai/anthropic/google)"),
     model: Optional[str] = typer.Option(None, "--model", "-m", help="Specific model to use"),
-    save: Optional[str] = typer.Option(None, "--save", "-s", help="Save results to JSON file"),
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Enable verbose output")
 ):
     """
     🔮 Generate a cryptocurrency price forecast.
     
+    Results are automatically saved to the 'results/' folder with charts and logs.
+    
     Examples:
         crypto-agent-forecaster forecast bitcoin
         crypto-agent-forecaster forecast ethereum --horizon "3 days"
-        crypto-agent-forecaster forecast solana --provider anthropic --save results.json
+        crypto-agent-forecaster forecast solana --provider anthropic
     """
     display_banner()
     
@@ -132,16 +139,10 @@ def forecast(
     
     try:
         # Initialize the forecasting crew
-        crew = CryptoForecastingCrew()
+        crew = CryptoForecastingCrew(verbose=verbose)
         
         # Run the forecast
         results = crew.run_forecast(crypto, horizon)
-        
-        # Save results if requested
-        if save:
-            with open(save, 'w') as f:
-                json.dump(results, f, indent=2)
-            console.print(f"\n💾 Results saved to {save}")
         
         # Display success message
         if "error" not in results:
@@ -195,22 +196,23 @@ def test(
     console.print(f"\n🧪 Testing system with {crypto.upper()}...")
     
     try:
-        from src.crypto_agent_forecaster.tools import (
-            create_coingecko_tool, 
-            create_fourchan_tool, 
-            create_technical_analysis_tool
-        )
+        from src.crypto_agent_forecaster.tools.coingecko_tool import CoinGeckoTool
+        from src.crypto_agent_forecaster.tools.fourchan_tool import FourChanBizTool
+        from src.crypto_agent_forecaster.tools.technical_analysis_tool import TechnicalAnalysisTool
         
         # Test CoinGecko tool
         console.print("1. Testing CoinGecko API...")
-        coingecko_tool = create_coingecko_tool()
-        market_data = coingecko_tool._run(crypto_id=crypto, days=7 if quick else 30)
+        coingecko_tool = CoinGeckoTool()
+        
+        # Use the legacy interface for testing
+        days = 7 if quick else 30
+        market_data = coingecko_tool._run(query=f"{crypto} ohlcv {days} days")
         console.print("   ✅ CoinGecko API working")
         
         # Test 4chan tool (if not quick mode)
         if not quick:
             console.print("2. Testing 4chan /biz/ API...")
-            fourchan_tool = create_fourchan_tool()
+            fourchan_tool = FourChanBizTool()
             biz_data = fourchan_tool._run(keywords=[crypto, "crypto"], max_threads=2, max_posts_per_thread=5)
             console.print("   ✅ 4chan API working")
         else:
@@ -219,7 +221,7 @@ def test(
         # Test technical analysis
         console.print("3. Testing technical analysis...")
         if market_data and "error" not in market_data:
-            tech_tool = create_technical_analysis_tool()
+            tech_tool = TechnicalAnalysisTool()
             tech_analysis = tech_tool._run(ohlcv_data=market_data, crypto_name=crypto)
             console.print("   ✅ Technical analysis working")
         else:
@@ -263,6 +265,72 @@ def list_cryptos():
     console.print(crypto_table)
     console.print("\n💡 Use the ID column when running forecasts")
     console.print("   Example: crypto-agent-forecaster forecast bitcoin")
+
+
+@app.command()
+def models():
+    """
+    📋 Display available LLM models and recommendations.
+    """
+    display_banner()
+    
+    if not check_configuration():
+        return
+    
+    console.print("\n🤖 LLM Model Information & Recommendations", style="bold")
+    
+    # Display available providers and their models
+    providers = LLMFactory.get_available_providers()
+    
+    for provider in providers:
+        console.print(f"\n📊 {provider.upper()} Models:", style="bold cyan")
+        
+        models_table = Table(title=f"{provider.capitalize()} Model Specifications")
+        models_table.add_column("Model", style="yellow")
+        models_table.add_column("Max Tokens", style="cyan")
+        models_table.add_column("Cost/1K Input", style="green")
+        models_table.add_column("Cost/1K Output", style="red")
+        
+        model_specs = LLMFactory.MODEL_SPECS.get(provider, {})
+        for model_name, specs in model_specs.items():
+            cost_info = specs.get("cost_per_1k_tokens", {})
+            models_table.add_row(
+                model_name,
+                f"{specs.get('max_tokens', 'Unknown'):,}",
+                f"${cost_info.get('input', 0):.6f}",
+                f"${cost_info.get('output', 0):.6f}"
+            )
+        
+        console.print(models_table)
+    
+    # Display task recommendations
+    console.print("\n🎯 Task-Specific Model Recommendations:", style="bold")
+    
+    tasks = ["sentiment_analysis", "technical_analysis", "multimodal_fusion", "cost_optimized"]
+    
+    rec_table = Table(title="Recommended Models by Task")
+    rec_table.add_column("Task", style="cyan")
+    rec_table.add_column("Provider", style="yellow") 
+    rec_table.add_column("Model", style="green")
+    rec_table.add_column("Reason", style="white")
+    
+    for task in tasks:
+        rec = LLMFactory.get_recommended_model_for_task(task)
+        rec_table.add_row(
+            task.replace("_", " ").title(),
+            rec["provider"].capitalize(),
+            rec["model"],
+            rec["reason"]
+        )
+    
+    console.print(rec_table)
+    
+    console.print("\n💡 Usage Tips:", style="bold yellow")
+    console.print("• Use --provider and --model flags to specify different models")
+    console.print("• Claude models excel at nuanced sentiment analysis")
+    console.print("• GPT models are strong for structured technical analysis") 
+    console.print("• Gemini models have the largest context windows")
+    console.print("• Consider cost vs. performance for your use case")
 
 
 if __name__ == "__main__":

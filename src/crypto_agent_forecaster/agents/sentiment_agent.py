@@ -5,10 +5,25 @@ Sentiment Analysis Agent for cryptocurrency sentiment from news and 4chan data.
 from crewai import Agent
 from ..tools import create_fourchan_tool
 from ..llm_factory import LLMFactory
+from ..config import Config
 
 
 def create_crypto_sentiment_analysis_agent() -> Agent:
-    """Create the CryptoSentimentAnalysisAgent."""
+    """Create the CryptoSentimentAnalysisAgent with optimized LLM configuration."""
+    
+    # Get agent-specific LLM configuration
+    agent_config = Config.get_agent_llm_config("sentiment")
+    
+    # Create the tool instance
+    fourchan_tool = create_fourchan_tool()
+    
+    # Create LLM with optimized settings for sentiment analysis
+    llm = LLMFactory.create_llm(
+        provider=Config.DEFAULT_LLM_PROVIDER,
+        model=Config.DEFAULT_LLM_MODEL,
+        temperature=agent_config.get("temperature", 0.2),
+        max_tokens=agent_config.get("max_tokens", 3000)
+    )
     
     return Agent(
         role="Crypto-Focused Sentiment and Narrative Analyst",
@@ -28,11 +43,18 @@ def create_crypto_sentiment_analysis_agent() -> Agent:
         
         You are particularly skilled at handling noisy, adversarial text and can extract 
         meaningful signals from the most challenging data sources while remaining skeptical 
-        of potential manipulation.""",
-        verbose=True,
+        of potential manipulation.
+        
+        Key capabilities:
+        • Detect FUD patterns: Recognize fear-mongering, unsubstantiated negative claims
+        • Identify shilling: Spot coordinated promotion, unrealistic hype, manipulation
+        • Crypto slang interpretation: Understand HODL, FOMO, diamond hands, etc.
+        • Context awareness: Consider market conditions when analyzing sentiment
+        • Signal vs noise: Filter genuine sentiment from manipulation attempts""",
+        verbose=False,
         allow_delegation=False,
-        tools=[create_fourchan_tool()],
-        llm=LLMFactory.create_llm(temperature=0.2)  # Slightly higher temperature for nuanced analysis
+        tools=[fourchan_tool],
+        llm=llm
     )
 
 

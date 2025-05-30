@@ -5,84 +5,35 @@ CoinGecko API tool for fetching cryptocurrency market data.
 import time
 import requests
 import pandas as pd
+import json
 from datetime import datetime
 from typing import Dict, Any
-from langchain.tools import BaseTool
-from pydantic import BaseModel, Field
+from crewai.tools import tool
 
 from ..config import Config
 
 
-class CoinGeckoInput(BaseModel):
-    """Input for CoinGecko tool."""
-    query: str = Field(description="Query for cryptocurrency data (e.g., 'bitcoin current price', 'ethereum ohlcv 30 days')")
-
-
-class CoinGeckoTool(BaseTool):
-    """Tool for fetching cryptocurrency data from CoinGecko API."""
-    
-    name: str = "coingecko_tool"
-    description: str = """
-    Fetches cryptocurrency market data from CoinGecko API.
-    Can get current prices, historical OHLCV data, and market statistics.
-    Supports queries like 'bitcoin current price', 'ethereum ohlcv 7 days', 'solana market stats'.
+@tool("coingecko_tool")
+def coingecko_tool(query: str) -> str:
     """
-    args_schema: type[BaseModel] = CoinGeckoInput
+    Fetches cryptocurrency market data from CoinGecko API.
     
-    def __init__(self):
-        super().__init__()
-        self.base_url = Config.COINGECKO_BASE_URL
-        self.api_key = Config.COINGECKO_API_KEY
-        self.session = requests.Session()
-        
-        # Add API key to headers if available
-        if self.api_key:
-            self.session.headers.update({"x-cg-demo-api-key": self.api_key})
+    Args:
+        query: Query for cryptocurrency data (e.g., 'bitcoin current price', 'ethereum ohlcv 30 days')
     
-    def _run(self, query: str = None, crypto_id: str = None, days: int = None) -> str:
-        """Execute the CoinGecko API query."""
-        try:
-            # Handle direct parameters (for internal use)
-            if crypto_id is not None:
-                if days is not None:
-                    result = self.get_ohlcv_data(crypto_id, days)
-                else:
-                    result = self.get_comprehensive_data(crypto_id)
-                # Return JSON string for technical analysis tool
-                if "ohlcv_data" in result:
-                    import json
-                    return json.dumps(result["ohlcv_data"])
-                else:
-                    import json
-                    return json.dumps(result)
-            
-            # Handle query string (for LLM use)
-            if query:
-                # Parse the query to determine the operation
-                if "current_price" in query.lower():
-                    crypto_id = self._extract_crypto_id(query)
-                    result = self.get_current_price(crypto_id)
-                elif "ohlcv" in query.lower() or "historical" in query.lower():
-                    crypto_id = self._extract_crypto_id(query)
-                    days = self._extract_days(query)
-                    result = self.get_ohlcv_data(crypto_id, days)
-                elif "market_stats" in query.lower():
-                    crypto_id = self._extract_crypto_id(query)
-                    result = self.get_market_stats(crypto_id)
-                else:
-                    crypto_id = self._extract_crypto_id(query)
-                    result = self.get_comprehensive_data(crypto_id)
-                
-                import json
-                return json.dumps(result, indent=2)
-            
-            return json.dumps({"error": "No query or crypto_id provided"})
-            
-        except Exception as e:
-            import json
-            return json.dumps({"error": f"CoinGecko API error: {str(e)}"})
+    Returns:
+        JSON string containing the requested cryptocurrency data
+    """
     
-    def _extract_crypto_id(self, query: str) -> str:
+    def _get_session():
+        """Create a requests session with API key if available."""
+        session = requests.Session()
+        api_key = Config.COINGECKO_API_KEY or ""
+        if api_key:
+            session.headers.update({"x-cg-demo-api-key": api_key})
+        return session
+    
+    def _extract_crypto_id(query: str) -> str:
         """Extract cryptocurrency ID from query."""
         query_lower = query.lower()
         # Map common names to CoinGecko IDs
@@ -94,7 +45,11 @@ class CoinGeckoTool(BaseTool):
             "solana": "solana",
             "sol": "solana",
             "cardano": "cardano",
-            "ada": "cardano"
+            "ada": "cardano",
+            "polkadot": "polkadot",
+            "dot": "polkadot",
+            "chainlink": "chainlink",
+            "link": "chainlink"
         }
         
         for name, coin_id in crypto_map.items():
@@ -104,7 +59,7 @@ class CoinGeckoTool(BaseTool):
         # Default to bitcoin if no specific crypto found
         return "bitcoin"
     
-    def _extract_days(self, query: str) -> int:
+    def _extract_days(query: str) -> int:
         """Extract number of days from query."""
         if "30 days" in query.lower() or "month" in query.lower():
             return 30
@@ -115,10 +70,10 @@ class CoinGeckoTool(BaseTool):
         else:
             return 7  # Default to 7 days
     
-    def get_current_price(self, crypto_id: str) -> Dict[str, Any]:
+    def _get_current_price(crypto_id: str, session: requests.Session) -> Dict[str, Any]:
         """Get current price and basic market data."""
         try:
-            url = f"{self.base_url}/simple/price"
+            url = f"{Config.COINGECKO_BASE_URL}/simple/price"
             params = {
                 "ids": crypto_id,
                 "vs_currencies": "usd",
@@ -127,7 +82,7 @@ class CoinGeckoTool(BaseTool):
                 "include_market_cap": "true"
             }
             
-            response = self.session.get(url, params=params)
+            response = session.get(url, params=params)
             response.raise_for_status()
             
             data = response.json()
@@ -146,20 +101,20 @@ class CoinGeckoTool(BaseTool):
         except requests.RequestException as e:
             return {"error": f"API request failed: {str(e)}"}
     
-    def get_ohlcv_data(self, crypto_id: str, days: int = 7) -> Dict[str, Any]:
+    def _get_ohlcv_data(crypto_id: str, days: int, session: requests.Session) -> Dict[str, Any]:
         """Get historical OHLCV data."""
         try:
             # Use different endpoints based on days requested
             if days <= 1:
                 # For very recent data, use market_chart
-                url = f"{self.base_url}/coins/{crypto_id}/market_chart"
+                url = f"{Config.COINGECKO_BASE_URL}/coins/{crypto_id}/market_chart"
                 params = {"vs_currency": "usd", "days": days}
             else:
                 # For longer periods, use OHLC endpoint
-                url = f"{self.base_url}/coins/{crypto_id}/ohlc"
+                url = f"{Config.COINGECKO_BASE_URL}/coins/{crypto_id}/ohlc"
                 params = {"vs_currency": "usd", "days": days}
             
-            response = self.session.get(url, params=params)
+            response = session.get(url, params=params)
             response.raise_for_status()
             
             data = response.json()
@@ -215,11 +170,11 @@ class CoinGeckoTool(BaseTool):
         except Exception as e:
             return {"error": f"Data processing error: {str(e)}"}
     
-    def get_market_stats(self, crypto_id: str) -> Dict[str, Any]:
+    def _get_market_stats(crypto_id: str, session: requests.Session) -> Dict[str, Any]:
         """Get comprehensive market statistics."""
         try:
-            url = f"{self.base_url}/coins/{crypto_id}"
-            response = self.session.get(url)
+            url = f"{Config.COINGECKO_BASE_URL}/coins/{crypto_id}"
+            response = session.get(url)
             response.raise_for_status()
             
             data = response.json()
@@ -246,22 +201,80 @@ class CoinGeckoTool(BaseTool):
         except requests.RequestException as e:
             return {"error": f"API request failed: {str(e)}"}
     
-    def get_comprehensive_data(self, crypto_id: str) -> Dict[str, Any]:
-        """Get both current stats and recent OHLCV data."""
-        current_data = self.get_current_price(crypto_id)
-        market_stats = self.get_market_stats(crypto_id)
-        ohlcv_data = self.get_ohlcv_data(crypto_id, days=7)
+    # Main execution
+    try:
+        session = _get_session()
+        crypto_id = _extract_crypto_id(query)
         
-        # Add rate limiting
-        time.sleep(Config.API_RATE_LIMIT_DELAY)
+        # Parse the query to determine the operation
+        if "current_price" in query.lower() or "price" in query.lower():
+            result = _get_current_price(crypto_id, session)
+        elif "ohlcv" in query.lower() or "historical" in query.lower():
+            days = _extract_days(query)
+            result = _get_ohlcv_data(crypto_id, days, session)
+        elif "market_stats" in query.lower() or "stats" in query.lower():
+            result = _get_market_stats(crypto_id, session)
+        else:
+            # Default comprehensive data
+            current_data = _get_current_price(crypto_id, session)
+            market_stats = _get_market_stats(crypto_id, session)
+            ohlcv_data = _get_ohlcv_data(crypto_id, 7, session)
+            
+            # Add rate limiting
+            time.sleep(Config.API_RATE_LIMIT_DELAY)
+            
+            result = {
+                "current_data": current_data,
+                "market_stats": market_stats,
+                "recent_ohlcv": ohlcv_data
+            }
         
-        return {
-            "current_data": current_data,
-            "market_stats": market_stats,
-            "recent_ohlcv": ohlcv_data
-        }
+        return json.dumps(result, indent=2)
+        
+    except Exception as e:
+        return json.dumps({"error": f"CoinGecko API error: {str(e)}"})
 
 
-def create_coingecko_tool() -> CoinGeckoTool:
+# Legacy wrapper for backward compatibility
+class CoinGeckoTool:
+    """Legacy wrapper for the coingecko_tool function."""
+    
+    def __init__(self):
+        self.name = "coingecko_tool"
+        self.description = """
+        Fetches cryptocurrency market data from CoinGecko API.
+        Can get current prices, historical OHLCV data, and market statistics.
+        Supports queries like 'bitcoin current price', 'ethereum ohlcv 7 days', 'solana market stats'.
+        """
+        self.base_url = Config.COINGECKO_BASE_URL
+        self.api_key = Config.COINGECKO_API_KEY or ""
+        self._session = requests.Session()
+        if self.api_key:
+            self._session.headers.update({"x-cg-demo-api-key": self.api_key})
+    
+    @property  
+    def session(self):
+        """Get the requests session."""
+        if not hasattr(self, '_session'):
+            self._session = requests.Session()
+            if self.api_key:
+                self._session.headers.update({"x-cg-demo-api-key": self.api_key})
+        return self._session
+    
+    def _run(self, query: str = None, crypto_id: str = None, days: int = None) -> str:
+        """Legacy interface for the tool."""
+        if crypto_id is not None:
+            if days is not None:
+                query = f"{crypto_id} ohlcv {days} days"
+            else:
+                query = f"{crypto_id} comprehensive data"
+        elif query is None:
+            query = "bitcoin current price"
+            
+        # Access the underlying function from the Tool object
+        return coingecko_tool.func(query)
+
+
+def create_coingecko_tool():
     """Create and return a CoinGecko tool instance."""
-    return CoinGeckoTool() 
+    return coingecko_tool 
