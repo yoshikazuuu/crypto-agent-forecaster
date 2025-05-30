@@ -295,7 +295,7 @@ class CryptoValidator:
         try:
             # Run the main forecasting tool from the parent directory
             parent_dir = Path(__file__).parent.parent
-            cmd = ["uv", "run", "main.py", "forecast", coin, "--horizon", horizon, "--yes"]
+            cmd = ["uv", "run", "--active", "main.py", "forecast", coin, "--horizon", horizon, "--yes"]
             
             self.logger.info(f"Running forecast command: {' '.join(cmd)}")
             
@@ -308,7 +308,10 @@ class CryptoValidator:
             )
             
             if process.returncode != 0:
-                self.logger.error(f"Forecast failed for {coin}: {process.stderr}")
+                self.logger.error(f"Forecast failed for {coin} (return code: {process.returncode})")
+                self.logger.error(f"STDERR: {process.stderr}")
+                if process.stdout:
+                    self.logger.error(f"STDOUT: {process.stdout}")
                 return None
             
             # Parse the forecast result from the output or results file
@@ -393,7 +396,7 @@ class CryptoValidator:
     def _calculate_metrics(self, results: List[ForecastResult]) -> ValidationMetrics:
         """Calculate comprehensive validation metrics"""
         if not results:
-            return ValidationMetrics(0, 0, 0, {}, {}, 0, 0, 0, 0, 0, 0, 0)
+            return ValidationMetrics(0, 0, 0, {}, {}, 0, 0, 0, 0, 0, 0, 0, 0)
         
         # Filter out results without accuracy data
         valid_results = [r for r in results if r.accuracy is not None]
