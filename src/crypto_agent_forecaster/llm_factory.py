@@ -56,10 +56,20 @@ class LLMFactory:
         provider = provider or Config.DEFAULT_LLM_PROVIDER
         model = model or Config.DEFAULT_LLM_MODEL
         
+        # Enhanced validation and debugging
+        logger.info(f"Creating LLM: {provider}/{model} with temp={temperature}")
+        
         # Validate provider and model
         if not LLMFactory._validate_model(provider, model):
             logger.warning(f"Model {model} not in known specs for {provider}, proceeding anyway")
         
+        # Pre-creation validation
+        try:
+            LLMFactory._validate_provider_config(provider)
+        except Exception as e:
+            logger.error(f"Provider validation failed for {provider}: {str(e)}")
+            raise ValueError(f"Invalid configuration for {provider}: {str(e)}")
+
         try:
             if provider == "openai":
                 return LLMFactory._create_openai_llm(model, temperature, max_tokens, **kwargs)
@@ -72,7 +82,13 @@ class LLMFactory:
                 
         except Exception as e:
             logger.error(f"Failed to create LLM {provider}/{model}: {str(e)}")
-            raise
+            # Enhanced error message for common issues
+            if "env already loaded" in str(e).lower():
+                raise ValueError(f"Environment configuration conflict detected. Try restarting the application or check for multiple dotenv loads. Original error: {str(e)}")
+            elif "api" in str(e).lower() and "key" in str(e).lower():
+                raise ValueError(f"API key issue for {provider}. Please check your .env file and ensure {provider.upper()}_API_KEY is set. Original error: {str(e)}")
+            else:
+                raise
     
     @staticmethod
     def _create_openai_llm(model: str, temperature: float, max_tokens: Optional[int], **kwargs):
@@ -163,6 +179,28 @@ class LLMFactory:
         """Validate if model is known for the provider."""
         return (provider in LLMFactory.MODEL_SPECS and 
                 model in LLMFactory.MODEL_SPECS[provider])
+    
+    @staticmethod
+    def _validate_provider_config(provider: str) -> bool:
+        """Validate provider configuration before creating LLM."""
+        if provider == "openai":
+            if not Config.OPENAI_API_KEY:
+                raise ValueError("OpenAI API key not configured. Please set OPENAI_API_KEY in your .env file.")
+            if not Config.OPENAI_API_KEY.startswith('sk-'):
+                logger.warning("OpenAI API key format looks incorrect (should start with 'sk-')")
+        elif provider == "anthropic":
+            if not Config.ANTHROPIC_API_KEY:
+                raise ValueError("Anthropic API key not configured. Please set ANTHROPIC_API_KEY in your .env file.")
+            if not Config.ANTHROPIC_API_KEY.startswith('sk-ant-'):
+                logger.warning("Anthropic API key format looks incorrect (should start with 'sk-ant-')")
+        elif provider == "google":
+            if not Config.GOOGLE_API_KEY:
+                raise ValueError("Google API key not configured. Please set GOOGLE_API_KEY in your .env file.")
+        else:
+            raise ValueError(f"Unsupported provider: {provider}")
+        
+        logger.info(f"Provider {provider} configuration validated successfully")
+        return True
     
     @staticmethod
     def get_available_providers():

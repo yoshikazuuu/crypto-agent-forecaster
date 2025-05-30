@@ -331,6 +331,129 @@ def config():
 
 
 @app.command()
+def debug():
+    """
+    🐛 Debug environment and configuration issues.
+    
+    This command provides detailed diagnostic information to help troubleshoot
+    common issues with environment setup, API key configuration, and LLM connectivity.
+    
+    🔍 DIAGNOSTIC INFORMATION:
+    • Environment variable loading status
+    • API key configuration validation
+    • LLM provider connectivity tests
+    • Agent-specific configuration validation
+    • Common configuration problems
+    
+    🛠️ TROUBLESHOOTING MODES:
+    • Environment debugging for "env already loaded" errors
+    • LLM configuration validation for each agent type
+    • API key presence and format validation
+    • CrewAI integration diagnostics
+    
+    💡 COMMON ISSUES DIAGNOSED:
+    • "❌ LLM Failed" errors
+    • "env already loaded" environment conflicts
+    • Missing or invalid API keys
+    • Model availability and configuration mismatches
+    • Rate limiting and connectivity issues
+    
+    🚀 WHEN TO USE:
+    • After getting LLM failure errors
+    • When setting up the system for the first time
+    • Before running forecasts to validate configuration
+    • When switching between different LLM providers
+    
+    📊 OUTPUT INCLUDES:
+    • Detailed environment status
+    • Per-agent LLM configuration validation
+    • Suggested fixes for common problems
+    • Environment variable presence checks
+    """
+    display_banner()
+    console.print("🐛 Environment & Configuration Debug Information\n", style="bold blue")
+    
+    try:
+        # Get debug information
+        debug_info = Config.debug_environment()
+        
+        # Display environment status
+        console.print("📊 Environment Status:", style="bold")
+        env_table = Table(title="Environment Configuration")
+        env_table.add_column("Setting", style="cyan")
+        env_table.add_column("Status", style="white")
+        env_table.add_column("Value/Details", style="yellow")
+        
+        env_table.add_row(
+            "Environment Loaded", 
+            "✅ Yes" if debug_info["environment_loaded"] else "❌ No",
+            "dotenv loading status"
+        )
+        env_table.add_row(
+            "Default Provider", 
+            "✅ Set" if debug_info["default_provider"] else "❌ Not set",
+            debug_info["default_provider"]
+        )
+        env_table.add_row(
+            "Default Model", 
+            "✅ Set" if debug_info["default_model"] else "❌ Not set",
+            debug_info["default_model"]
+        )
+        
+        console.print(env_table)
+        
+        # Display API key status
+        console.print("\n🔑 API Key Configuration:", style="bold")
+        api_table = Table(title="API Key Status")
+        api_table.add_column("Provider", style="cyan")
+        api_table.add_column("Configured", style="white")
+        api_table.add_column("In Environment", style="yellow")
+        api_table.add_column("Status", style="green")
+        
+        for provider, configured in debug_info["api_keys_configured"].items():
+            env_present = debug_info["env_vars_present"].get(f"{provider.upper()}_API_KEY", False)
+            status = "✅ Ready" if configured and env_present else "❌ Issue"
+            
+            api_table.add_row(
+                provider.title(),
+                "✅ Yes" if configured else "❌ No",
+                "✅ Yes" if env_present else "❌ No", 
+                status
+            )
+        
+        console.print(api_table)
+        
+        # Validate each agent's LLM configuration
+        console.print("\n🤖 Agent LLM Configuration:", style="bold")
+        agent_types = ["market_data", "sentiment", "technical", "forecasting"]
+        
+        for agent_type in agent_types:
+            is_valid = Config.validate_llm_config(agent_type)
+            if not is_valid:
+                console.print(f"❌ {agent_type} agent has configuration issues", style="red")
+        
+        # Check available providers
+        available_providers = LLMFactory.get_available_providers()
+        console.print(f"\n✅ Available LLM Providers: {', '.join(available_providers) if available_providers else 'None'}")
+        
+        if not available_providers:
+            console.print("❌ No LLM providers available! Please configure at least one API key.", style="bold red")
+            console.print("💡 Use 'crypto-agent-forecaster config' for setup instructions.")
+        
+        # Common issues and fixes
+        console.print("\n🛠️ Common Issues & Fixes:", style="bold")
+        console.print("• 'env already loaded' → Environment loading multiple times (should be fixed)")
+        console.print("• '❌ LLM Failed' → Check API keys and internet connectivity")
+        console.print("• Missing models → Verify model names match provider specifications")
+        console.print("• Rate limiting → Wait a few minutes and reduce request frequency")
+        
+    except Exception as e:
+        console.print(f"❌ Debug failed: {str(e)}", style="bold red")
+        import traceback
+        console.print(traceback.format_exc())
+
+
+@app.command()
 def test(
     crypto: str = typer.Option(
         "bitcoin", 
@@ -418,7 +541,8 @@ def test(
         # Test technical analysis
         console.print("3. Testing technical analysis...")
         tech_tool = TechnicalAnalysisTool()
-        tech_analysis = tech_tool._run(crypto_name=crypto, days=days)
+        forecast_horizon = "7 days" if quick else "30 days"
+        tech_analysis = tech_tool._run(crypto_name=crypto, forecast_horizon=forecast_horizon)
         console.print("   ✅ Technical analysis working")
         
         console.print("\n✅ All tests passed!", style="bold green")

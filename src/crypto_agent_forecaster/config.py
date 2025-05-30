@@ -6,8 +6,11 @@ import os
 from typing import Optional, Dict, Any
 from dotenv import load_dotenv
 
-# Load environment variables
-load_dotenv()
+# Ensure environment is loaded only once
+_env_loaded = False
+if not _env_loaded:
+    load_dotenv(override=False)  # Don't override existing env vars
+    _env_loaded = True
 
 class Config:
     """Configuration class for CryptoAgentForecaster."""
@@ -140,12 +143,62 @@ class Config:
     @classmethod
     def validate(cls) -> bool:
         """Validate that required configuration is present."""
-        required_keys = []
-        
         # Check if at least one LLM provider is configured
         llm_providers = [cls.OPENAI_API_KEY, cls.ANTHROPIC_API_KEY, cls.GOOGLE_API_KEY]
         if not any(llm_providers):
             print("Warning: No LLM API keys configured. You'll need at least one to run the system.")
             return False
             
-        return True 
+        return True
+    
+    @classmethod
+    def debug_environment(cls) -> Dict[str, Any]:
+        """Debug environment configuration for troubleshooting."""
+        debug_info = {
+            "environment_loaded": _env_loaded,
+            "api_keys_configured": {
+                "openai": bool(cls.OPENAI_API_KEY),
+                "anthropic": bool(cls.ANTHROPIC_API_KEY),
+                "google": bool(cls.GOOGLE_API_KEY),
+                "coingecko": bool(cls.COINGECKO_API_KEY)
+            },
+            "default_provider": cls.DEFAULT_LLM_PROVIDER,
+            "default_model": cls.DEFAULT_LLM_MODEL,
+            "env_vars_present": {
+                "OPENAI_API_KEY": "OPENAI_API_KEY" in os.environ,
+                "ANTHROPIC_API_KEY": "ANTHROPIC_API_KEY" in os.environ,
+                "GOOGLE_API_KEY": "GOOGLE_API_KEY" in os.environ,
+                "COINGECKO_API_KEY": "COINGECKO_API_KEY" in os.environ
+            }
+        }
+        return debug_info
+    
+    @classmethod 
+    def validate_llm_config(cls, agent_type: str) -> bool:
+        """Validate LLM configuration for a specific agent type."""
+        try:
+            config = cls.get_agent_llm_config(agent_type)
+            provider = config.get("preferred_provider")
+            model = config.get("preferred_model")
+            
+            if not provider or not model:
+                print(f"❌ Invalid LLM config for {agent_type}: missing provider or model")
+                return False
+            
+            # Check if the provider's API key is available
+            if provider == "openai" and not cls.OPENAI_API_KEY:
+                print(f"❌ OpenAI API key required for {agent_type} agent")
+                return False
+            elif provider == "anthropic" and not cls.ANTHROPIC_API_KEY:
+                print(f"❌ Anthropic API key required for {agent_type} agent")
+                return False
+            elif provider == "google" and not cls.GOOGLE_API_KEY:
+                print(f"❌ Google API key required for {agent_type} agent")
+                return False
+            
+            print(f"✅ LLM config valid for {agent_type}: {provider}/{model}")
+            return True
+            
+        except Exception as e:
+            print(f"❌ Error validating LLM config for {agent_type}: {e}")
+            return False 
