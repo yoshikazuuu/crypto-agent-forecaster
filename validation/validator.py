@@ -295,7 +295,7 @@ class CryptoValidator:
         try:
             # Run the main forecasting tool from the parent directory
             parent_dir = Path(__file__).parent.parent
-            cmd = ["python", "main.py", "forecast", coin, "--horizon", horizon, "--yes"]
+            cmd = ["uv", "run", "main.py", "forecast", coin, "--horizon", horizon, "--yes"]
             
             self.logger.info(f"Running forecast command: {' '.join(cmd)}")
             
