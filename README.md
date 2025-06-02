@@ -310,15 +310,22 @@ crypto-agent-forecaster/
 4. Add tests if applicable  
 5. Submit a pull request
 
-## 📚 Research Background
+## 📚 Related Background
 
-This project implements concepts from the research paper "Agent-Driven Cryptocurrency Forecasting: A Multimodal Approach with Hosted LLMs, CoinGecko, and 4chan/biz Sentiment Analysis." Key innovations include:
+This project builds upon and extends concepts from recent academic research in multi-agent systems for cryptocurrency investment:
 
-- Novel use of 4chan /biz/ for sentiment analysis
-- Multimodal fusion of technical and sentiment signals
-- Agent-based architecture for scalable analysis
-- Hosted LLM integration for rapid iteration
+- **"LLM-Powered Multi-Agent System for Automated Crypto Portfolio Management"** (Luo et al., 2024) [[arXiv:2501.00826]](https://arxiv.org/pdf/2501.00826)
+  - Demonstrates the effectiveness of multi-agent architectures for cryptocurrency portfolio management
+  - Validates the use of specialized agents for different aspects of analysis (market data, sentiment, technical analysis)
+  - Shows how intrateam and interteam collaboration mechanisms enhance prediction accuracy
+  - Provides empirical evidence that multi-agent systems outperform single-agent models
 
+Our implementation extends these concepts by:
+
+- Integrating 4chan /biz/ as a unique sentiment data source
+- Providing a user-friendly CLI interface for real-time forecasting
+- Implementing multimodal chart analysis using AI vision capabilities
+- Offering support for multiple LLM providers (OpenAI, Anthropic, Google)
 ## 📄 License
 
 This project is licensed under the MIT License - see the LICENSE file for details.
