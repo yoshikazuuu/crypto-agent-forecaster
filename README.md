@@ -137,6 +137,30 @@ python main.py test --quick
 
 The CryptoAgentForecaster uses a multi-agent architecture built with CrewAI:
 
+### System Overview
+
+![System Overview Flow](.github/System%20Overview%20Flow.svg)
+
+*Complete system architecture showing the flow from user interface through multi-agent processing to final outputs*
+
+### Technology Stack
+
+![Technology Stack Overview](.github/Technology%20Stack%20Overview.svg)
+
+*Comprehensive view of all technologies, frameworks, and APIs used in the system*
+
+### Data Flow Sequence
+
+![Detailed Data Flow Sequence](.github/Detailed%20Data%20Flow%20Sequence.svg)
+
+*Step-by-step sequence diagram showing how data flows through each component*
+
+### Component Interactions
+
+![Component Interaction Matrix](.github/Component%20Interaction%20Matrix.svg)
+
+*Matrix view of how different system components interact with each other*
+
 ### Agents
 
 1. **🔍 CryptoMarketDataAgent**
