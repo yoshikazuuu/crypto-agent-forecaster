@@ -53,7 +53,7 @@ Edit `.env` file with your API keys:
 ```bash
 # At least one LLM provider is required
 OPENAI_API_KEY=your_openai_api_key_here
-ANTHROPIC_API_KEY=your_anthropic_api_key_here  
+ANTHROPIC_API_KEY=your_anthropic_api_key_here
 GOOGLE_API_KEY=your_google_api_key_here
 
 # Optional but recommended for higher rate limits
@@ -114,6 +114,7 @@ python main.py list-cryptos
 ```
 
 Popular cryptocurrencies include:
+
 - `bitcoin` (Bitcoin - BTC)
 - `ethereum` (Ethereum - ETH)
 - `solana` (Solana - SOL)
@@ -137,19 +138,26 @@ python main.py test --quick
 
 The CryptoAgentForecaster uses a multi-agent architecture built with CrewAI:
 
+### Architecture Diagram
+
+![CryptoAgentForecaster Architecture](architecture-diagram.png)
+
 ### Agents
 
 1. **🔍 CryptoMarketDataAgent**
+
    - Fetches OHLCV data from CoinGecko
    - Handles rate limiting and data quality
    - Provides foundation for technical analysis
 
 2. **💭 CryptoSentimentAnalysisAgent**
+
    - Analyzes 4chan /biz/ discussions
    - Detects FUD and shilling attempts
    - Extracts market sentiment and narratives
 
 3. **📊 TechnicalAnalysisAgent**
+
    - Calculates technical indicators (RSI, MACD, MA, BB)
    - Identifies candlestick patterns
    - Generates technical outlook
@@ -207,13 +215,14 @@ LOG_LEVEL=INFO
 The system provides structured forecasts including:
 
 - **Direction**: UP/DOWN/NEUTRAL
-- **Confidence**: HIGH/MEDIUM/LOW  
+- **Confidence**: HIGH/MEDIUM/LOW
 - **Detailed Explanation**: Reasoning and key factors
 - **Technical Analysis**: Indicators and patterns
 - **Sentiment Analysis**: Market mood and narratives
 - **Risk Considerations**: Caveats and uncertainties
 
 Example output:
+
 ```
 📊 Forecast Results for BITCOIN
 ┏━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
@@ -227,8 +236,8 @@ Example output:
 └──────────────────┴───────────────────────────────┘
 
 🧠 Analysis & Reasoning
-Technical analysis shows bullish momentum with RSI at 45 
-and MACD crossing above signal line. 4chan sentiment 
+Technical analysis shows bullish momentum with RSI at 45
+and MACD crossing above signal line. 4chan sentiment
 reveals moderate optimism with limited FUD detection...
 ```
 
@@ -237,6 +246,7 @@ reveals moderate optimism with limited FUD detection...
 Every forecast run automatically creates a dedicated folder in `results/` with:
 
 ### Folder Structure
+
 ```
 results/
 └── bitcoin_20241215_143052/
@@ -248,6 +258,7 @@ results/
 ```
 
 ### Features
+
 - **🧹 Clean Logging**: No verbose JSON or base64 spam in console
 - **📊 Chart Generation**: Technical analysis charts saved as PNG
 - **📄 Structured Data**: Complete results in JSON format
@@ -259,7 +270,7 @@ results/
 ### Risks & Limitations
 
 - **Not Financial Advice**: This tool is for research and educational purposes only
-- **Market Volatility**: Cryptocurrency markets are highly volatile and unpredictable  
+- **Market Volatility**: Cryptocurrency markets are highly volatile and unpredictable
 - **Data Quality**: 4chan data is noisy and may contain manipulation attempts
 - **LLM Limitations**: AI models can hallucinate or misinterpret data
 - **API Dependencies**: System relies on external APIs that may have downtime
@@ -293,7 +304,7 @@ crypto-agent-forecaster/
 1. Fork the repository
 2. Create a feature branch
 3. Make your changes
-4. Add tests if applicable  
+4. Add tests if applicable
 5. Submit a pull request
 
 ## 📚 Research Background
@@ -304,6 +315,23 @@ This project implements concepts from the research paper "Agent-Driven Cryptocur
 - Multimodal fusion of technical and sentiment signals
 - Agent-based architecture for scalable analysis
 - Hosted LLM integration for rapid iteration
+
+### Related Research
+
+This project builds upon and extends concepts from recent academic research in multi-agent systems for cryptocurrency investment:
+
+- **"LLM-Powered Multi-Agent System for Automated Crypto Portfolio Management"** (Luo et al., 2024) [[arXiv:2501.00826]](https://arxiv.org/pdf/2501.00826)
+  - Demonstrates the effectiveness of multi-agent architectures for cryptocurrency portfolio management
+  - Validates the use of specialized agents for different aspects of analysis (market data, sentiment, technical analysis)
+  - Shows how intrateam and interteam collaboration mechanisms enhance prediction accuracy
+  - Provides empirical evidence that multi-agent systems outperform single-agent models
+
+Our implementation extends these concepts by:
+
+- Integrating 4chan /biz/ as a unique sentiment data source
+- Providing a user-friendly CLI interface for real-time forecasting
+- Implementing multimodal chart analysis using AI vision capabilities
+- Offering support for multiple LLM providers (OpenAI, Anthropic, Google)
 
 ## 📄 License
 
@@ -366,17 +394,17 @@ class CryptoAnalysisState(BaseModel):
     final_forecast: str = ""
 
 class CryptoAnalysisFlow(Flow[CryptoAnalysisState]):
-    
+
     @start()
     def initialize_analysis(self):
         self.state.crypto_name = "bitcoin"
         return "Analysis initialized"
-    
+
     @listen(initialize_analysis)
     def perform_technical_analysis(self, _):
         # Use technical_analysis_tool (automatically fetches fresh data)
         from crypto_agent_forecaster.tools.technical_analysis_tool import technical_analysis_tool
-        
+
         result = technical_analysis_tool(
             crypto_name=self.state.crypto_name,
             days=30  # Fetch 30 days of data for analysis
