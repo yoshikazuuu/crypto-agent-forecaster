@@ -30,7 +30,7 @@ An advanced cryptocurrency forecasting tool that leverages hosted Large Language
 
 ```bash
 # Clone the repository
-git clone <repository-url>
+git clone https://github.com/yoshikazuuu/crypto-agent-forecaster.git
 cd crypto-agent-forecaster
 
 # Install dependencies using uv (recommended)
