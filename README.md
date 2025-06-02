@@ -183,16 +183,6 @@ The CryptoAgentForecaster uses a multi-agent architecture built with CrewAI:
    - Generates final forecast with confidence
    - Provides detailed reasoning
 
-### Data Flow
-
-```
-CoinGecko API → Market Data → Technical Analysis
-                                        ↓
-4chan /biz/ → Sentiment Analysis → Multimodal Fusion → Final Forecast
-                                        ↓
-                              Hosted LLM Processing
-```
-
 ## 🔧 Advanced Configuration
 
 ### LLM Provider Settings
