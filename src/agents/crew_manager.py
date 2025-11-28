@@ -672,8 +672,8 @@ class CryptoForecastingCrew:
 
                         # Only flag as inconsistent if difference is very large AND price seems like current price
                         if (
-                            price_diff_percent > 30
-                        ):  # More than 30% difference
+                            price_diff_percent > 20
+                        ):  # More than 20% difference (stricter validation)
                             # Additional check: only flag if this looks like a current price mention
                             # (not a target price or historical reference)
                             text_context = final_forecast.lower()
@@ -702,8 +702,8 @@ class CryptoForecastingCrew:
 
             # Detect if analysis was done with seriously wrong price data
             major_inconsistencies = [
-                p for p in inconsistent_prices if p[1] > 50
-            ]  # More than 50% difference
+                p for p in inconsistent_prices if p[1] > 30
+            ]  # More than 30% difference (stricter - catches hallucinations)
 
             if major_inconsistencies:
                 print(f"CRITICAL ERROR: Major price inconsistency detected!")

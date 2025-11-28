@@ -17,9 +17,19 @@ class FusionPrompts:
     {sentiment_summary}
     
     === CURRENT MARKET CONTEXT ===
+    ⚠️ CRITICAL - USE THIS EXACT CURRENT PRICE AS YOUR REFERENCE POINT ⚠️
+    
     Current Price: ${current_price}
     24h Volume: ${volume_24h}
     Market Volatility: {volatility_level}
+    
+    **MANDATORY PRICE TARGET RULES:**
+    - ALL price targets MUST be calculated relative to the current price of ${current_price}
+    - For UP predictions: ALL targets must be ABOVE ${current_price} (typically 1-15% higher)
+    - For DOWN predictions: ALL targets must be BELOW ${current_price} (typically 1-10% lower)
+    - Stop loss must be on the OPPOSITE side of your direction from current price
+    - DO NOT use historical Bitcoin prices from 2023-2024 or any other period
+    - Your targets should reflect realistic {time_horizon} price movement from ${current_price}
     
     === FUSION INSTRUCTIONS ===
     Consider both the sentiment analysis and technical analysis provided. Follow these guidelines:
@@ -146,8 +156,12 @@ class FusionPrompts:
     {sentiment_summary}
     
     Market Context:
+    ⚠️ CRITICAL - CURRENT PRICE ANCHOR ⚠️
     Current Price: ${current_price}
     Volatility: {volatility_level}
+    
+    **IMPORTANT:** All your price targets MUST be based on ${current_price}.
+    Do NOT use any historical prices. Calculate targets as percentages from ${current_price}.
     
     **Let me think through this step by step:**
     
