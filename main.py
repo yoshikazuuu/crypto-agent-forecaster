@@ -2,13 +2,121 @@
 """
 CryptoAgentForecaster - CLI Application
 
-A multimodal cryptocurrency forecasting system using hosted LLMs and agent-based architecture.
+A sophisticated multi-agent cryptocurrency forecasting system using hosted Large Language Models 
+(LLMs) and specialized AI agents for comprehensive market analysis.
 
-Features:
-- Clean, truncated logging (no verbose JSON or base64 spam)
-- Automatic result saving to organized folders for each run
-- Technical analysis charts saved as PNG files
-- Complete run logs and forecast results in structured directories
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+OVERVIEW
+--------
+CryptoAgentForecaster orchestrates 4 specialized AI agents that work sequentially to analyze
+cryptocurrency markets from multiple perspectives:
+
+1. MARKET DATA AGENT   → Collects 30 days OHLCV data from CoinGecko
+2. SENTIMENT AGENT     → Analyzes 4chan /biz/ for FUD/shill detection  
+3. TECHNICAL AGENT     → Performs 50+ indicator analysis + chart generation
+4. FORECASTING AGENT   → Synthesizes all data into actionable predictions
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ARCHITECTURE
+------------
+┌─────────────────────────────────────────────────────────────────┐
+│                     CLI Interface (Typer + Rich)                │
+│  Commands: forecast | backtest | config | test | models | help │
+└────────────────────────┬────────────────────────────────────────┘
+                         │
+                         ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                  Crew Manager (CrewAI)                          │
+│  Orchestrates sequential multi-agent workflow                   │
+└─┬───────────┬────────────┬────────────┬─────────────────────────┘
+  │           │            │            │
+  ▼           ▼            ▼            ▼
+┌─────┐   ┌─────┐    ┌─────┐    ┌──────────┐
+│Market│   │Sent-│    │Tech-│    │Forecast- │
+│Data  │   │iment│    │nical│    │ing Agent │
+│Agent │   │Agent│    │Agent│    │          │
+└──┬──┘   └──┬──┘    └──┬──┘    └────┬─────┘
+   │         │           │            │
+   ▼         ▼           ▼            ▼
+┌────────┐ ┌─────┐   ┌──────┐   ┌─────────┐
+│CoinGecko│ │4chan│   │  TA  │   │  Chart  │
+│  Tool   │ │Tool │   │ Tool │   │Analysis │
+└─────────┘ └─────┘   └──────┘   └─────────┘
+     │         │           │            │
+     ▼         ▼           ▼            ▼
+┌─────────────────────────────────────────┐
+│         LLM Factory                     │
+│  OpenAI | Anthropic | Google Gemini    │
+└─────────────────────────────────────────┘
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+FORECAST WORKFLOW
+-----------------
+PHASE 1: Market Data Collection (5-10s)
+  └─> Fetches OHLCV data, volume, market cap, price trends
+
+PHASE 2: Sentiment Analysis (10-15s)
+  └─> Analyzes 4chan /biz/ for FUD/shill signals, narratives
+
+PHASE 3: Technical Analysis (15-20s)  
+  └─> Calculates 50+ indicators, patterns, generates charts
+
+PHASE 4: Forecast Synthesis (10-15s)
+  └─> Fuses all data into direction, confidence, targets
+
+Total Duration: 40-60 seconds per forecast
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+KEY CAPABILITIES
+----------------
+✓ Multi-Agent Architecture: 4 specialized agents with task-specific LLMs
+✓ Novel Sentiment Analysis: 4chan /biz/ integration for retail sentiment
+✓ Advanced Technical Analysis: 50+ indicators, 20+ candlestick patterns
+✓ Flexible LLM Integration: OpenAI, Anthropic, Google (per-agent optimization)
+✓ Research Framework: Backtesting with statistical analysis
+✓ Production-Ready Output: JSON + Markdown + PNG charts in organized folders
+✓ Clean Logging: Sanitized output without verbose JSON or base64 spam
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+OUTPUTS GENERATED
+-----------------
+Every forecast creates a timestamped directory:
+
+results/bitcoin_20241215_143052/
+├── README.md                        # Human-readable summary report
+├── forecast_results.json            # Structured forecast data
+├── run_logs.txt                     # Complete execution logs
+└── charts/
+    └── technical_analysis_chart.png # Generated TA charts
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+USAGE EXAMPLES
+--------------
+# Basic forecast
+python main.py forecast bitcoin
+
+# With detailed tracking
+python main.py forecast ethereum --verbose
+
+# Custom configuration
+python main.py forecast solana --horizon "3 days" --provider anthropic
+
+# System validation
+python main.py test --quick
+
+# Research backtesting
+python main.py backtest bitcoin --quick-test
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+For detailed architecture and flow documentation, see ARCHITECTURE.md
+For usage instructions and setup guide, see README.md
 """
 
 import typer

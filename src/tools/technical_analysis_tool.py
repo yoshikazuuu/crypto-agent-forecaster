@@ -8,7 +8,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 import seaborn as sns
-from typing import Dict, List, Any, Union
+from typing import Dict, List, Any, Union, Optional
 from crewai.tools import tool
 import ta
 import io
@@ -98,7 +98,7 @@ def clear_chart_data():
 
 
 @tool("technical_analysis_tool")
-def technical_analysis_tool(crypto_name: str, forecast_horizon: str = "24 hours", historical_date: str = "") -> str:
+def technical_analysis_tool(crypto_name: str, forecast_horizon: str = "24 hours", historical_date: Optional[str] = None) -> str:
     """
     Performs comprehensive technical analysis on cryptocurrency data by fetching fresh OHLCV data
     and generating visual charts optimized for the forecast horizon.
@@ -1830,7 +1830,7 @@ class TechnicalAnalysisTool:
         """
         self.ta_config = Config.TA_INDICATORS
 
-    def _run(self, crypto_name: str, forecast_horizon: str = "24 hours", historical_date: str = "") -> str:
+    def _run(self, crypto_name: str, forecast_horizon: str = "24 hours", historical_date: Optional[str] = None) -> str:
         """Legacy interface for the tool with proper parameter handling."""
         return technical_analysis_tool.func(crypto_name, forecast_horizon, historical_date)
 

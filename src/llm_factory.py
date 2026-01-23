@@ -154,8 +154,9 @@ class LLMFactory:
             "temperature": temperature,
         }
         
+        # Google Gemini 2.0 models use max_completion_tokens instead of max_tokens
         if max_tokens:
-            params["max_tokens"] = max_tokens
+            params["max_completion_tokens"] = max_tokens
             
         # Add Google-specific parameters
         if kwargs.get("top_p"):

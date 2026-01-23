@@ -204,6 +204,115 @@ def hide_base64_from_logs(text: str) -> str:
     return cleaned_text
 
 
+def truncate_text_for_display(text: str, max_length: int = 500) -> str:
+    """
+    Truncate long text for display in logs/terminal while preserving readability.
+    
+    Args:
+        text: Text to potentially truncate
+        max_length: Maximum length before truncation (default 500 chars)
+        
+    Returns:
+        Truncated text with indicator if shortened
+    """
+    if not text or len(text) <= max_length:
+        return text
+    
+    # Truncate and add indicator
+    truncated = text[:max_length].rstrip()
+    remaining = len(text) - max_length
+    return f"{truncated}... [+{remaining} chars truncated]"
+
+
+def truncate_crew_output(output: str, max_prompt_length: int = 500, max_result_length: int = 500) -> str:
+    """
+    Truncate CrewAI verbose output to make workflow easier to follow.
+    Truncates long prompts and results while keeping status/flow information intact.
+    
+    Args:
+        output: The full crew verbose output
+        max_prompt_length: Max chars for prompt sections
+        max_result_length: Max chars for result sections
+        
+    Returns:
+        Output with long sections truncated
+    """
+    lines = output.split('\n')
+    result_lines = []
+    in_prompt = False
+    in_result = False
+    current_section = []
+    section_type = None
+    
+    for line in lines:
+        # Detect start of prompt section
+        if 'Prompt:' in line or 'prompt:' in line.lower():
+            # Flush previous section if any
+            if current_section and section_type:
+                section_text = '\n'.join(current_section)
+                if section_type == 'prompt':
+                    result_lines.append(truncate_text_for_display(section_text, max_prompt_length))
+                elif section_type == 'result':
+                    result_lines.append(truncate_text_for_display(section_text, max_result_length))
+                current_section = []
+            
+            in_prompt = True
+            in_result = False
+            section_type = 'prompt'
+            current_section = [line]
+            continue
+        
+        # Detect start of result section
+        if 'Result:' in line or 'Output:' in line or 'result:' in line.lower():
+            # Flush previous section
+            if current_section and section_type:
+                section_text = '\n'.join(current_section)
+                if section_type == 'prompt':
+                    result_lines.append(truncate_text_for_display(section_text, max_prompt_length))
+                elif section_type == 'result':
+                    result_lines.append(truncate_text_for_display(section_text, max_result_length))
+                current_section = []
+            
+            in_result = True
+            in_prompt = False
+            section_type = 'result'
+            current_section = [line]
+            continue
+        
+        # Detect end of sections (new task, agent info, etc.)
+        if any(marker in line for marker in ['Task:', 'Agent:', '===', '---', 'Starting', 'Completed', 'Executing']):
+            # Flush current section
+            if current_section and section_type:
+                section_text = '\n'.join(current_section)
+                if section_type == 'prompt':
+                    result_lines.append(truncate_text_for_display(section_text, max_prompt_length))
+                elif section_type == 'result':
+                    result_lines.append(truncate_text_for_display(section_text, max_result_length))
+                current_section = []
+                section_type = None
+            
+            in_prompt = False
+            in_result = False
+            result_lines.append(line)
+            continue
+        
+        # Accumulate content in current section
+        if in_prompt or in_result:
+            current_section.append(line)
+        else:
+            result_lines.append(line)
+    
+    # Flush any remaining section
+    if current_section and section_type:
+        section_text = '\n'.join(current_section)
+        if section_type == 'prompt':
+            result_lines.append(truncate_text_for_display(section_text, max_prompt_length))
+        elif section_type == 'result':
+            result_lines.append(truncate_text_for_display(section_text, max_result_length))
+    
+    return '\n'.join(result_lines)
+
+
 def sanitize_for_logging(data: Any, max_json_length: int = None) -> str:
     """
     Sanitize data for logging by hiding base64 only (no truncation).

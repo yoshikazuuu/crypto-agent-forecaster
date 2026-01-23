@@ -4178,5 +4178,335 @@
       "data_source": "coingecko_historical_api"
     },
     "timestamp": 1752284588.975629
+  },
+  "bitcoin_2025-09-27": {
+    "data": {
+      "date": "2025-09-27",
+      "cryptocurrency": "bitcoin",
+      "current_price": 109710.20874667744,
+      "next_day_price": 109654.81021075726,
+      "actual_movement_24h": -0.05049533361848955,
+      "market_cap": 2185866776171.5464,
+      "volume_24h": 55257214020.568245,
+      "ohlcv": {
+        "timestamp": "2025-09-27T00:00:00",
+        "open": 109710.20874667744,
+        "high": 109710.20874667744,
+        "low": 109710.20874667744,
+        "close": 109710.20874667744,
+        "volume": 55257214020.568245
+      },
+      "historical_mode": true,
+      "data_source": "coingecko_historical_api"
+    },
+    "timestamp": 1764303568.510782
+  },
+  "bitcoin_2025-09-28": {
+    "data": {
+      "date": "2025-09-28",
+      "cryptocurrency": "bitcoin",
+      "current_price": 109654.81021075726,
+      "next_day_price": 112142.57362752674,
+      "actual_movement_24h": 2.2687225594463025,
+      "market_cap": 2185203231301.0562,
+      "volume_24h": 23294896964.31016,
+      "ohlcv": {
+        "timestamp": "2025-09-28T00:00:00",
+        "open": 109654.81021075726,
+        "high": 109654.81021075726,
+        "low": 109654.81021075726,
+        "close": 109654.81021075726,
+        "volume": 23294896964.31016
+      },
+      "historical_mode": true,
+      "data_source": "coingecko_historical_api"
+    },
+    "timestamp": 1764303633.231555
+  },
+  "bitcoin_2025-09-29": {
+    "data": {
+      "date": "2025-09-29",
+      "cryptocurrency": "bitcoin",
+      "current_price": 112142.57362752674,
+      "next_day_price": 114309.15041119447,
+      "actual_movement_24h": 1.9319841819074444,
+      "market_cap": 2235798877396.134,
+      "volume_24h": 31274654338.51212,
+      "ohlcv": {
+        "timestamp": "2025-09-29T00:00:00",
+        "open": 112142.57362752674,
+        "high": 112142.57362752674,
+        "low": 112142.57362752674,
+        "close": 112142.57362752674,
+        "volume": 31274654338.51212
+      },
+      "historical_mode": true,
+      "data_source": "coingecko_historical_api"
+    },
+    "timestamp": 1764303702.5032582
+  },
+  "bitcoin_2025-09-30": {
+    "data": {
+      "date": "2025-09-30",
+      "cryptocurrency": "bitcoin",
+      "current_price": 114309.15041119447,
+      "next_day_price": 114024.22783550054,
+      "actual_movement_24h": -0.2492561397482173,
+      "market_cap": 2278362523594.3135,
+      "volume_24h": 57833295882.65785,
+      "ohlcv": {
+        "timestamp": "2025-09-30T00:00:00",
+        "open": 114309.15041119447,
+        "high": 114309.15041119447,
+        "low": 114309.15041119447,
+        "close": 114309.15041119447,
+        "volume": 57833295882.65785
+      },
+      "historical_mode": true,
+      "data_source": "coingecko_historical_api"
+    },
+    "timestamp": 1764303755.347334
+  },
+  "bitcoin_2025-10-01": {
+    "data": {
+      "date": "2025-10-01",
+      "cryptocurrency": "bitcoin",
+      "current_price": 114024.22783550054,
+      "next_day_price": 118503.24451752483,
+      "actual_movement_24h": 3.9281271770470014,
+      "market_cap": 2272137555069.4507,
+      "volume_24h": 57718901820.70616,
+      "ohlcv": {
+        "timestamp": "2025-10-01T00:00:00",
+        "open": 114024.22783550054,
+        "high": 114024.22783550054,
+        "low": 114024.22783550054,
+        "close": 114024.22783550054,
+        "volume": 57718901820.70616
+      },
+      "historical_mode": true,
+      "data_source": "coingecko_historical_api"
+    },
+    "timestamp": 1764303805.01766
+  },
+  "bitcoin_2025-10-02": {
+    "data": {
+      "date": "2025-10-02",
+      "cryptocurrency": "bitcoin",
+      "current_price": 118503.24451752483,
+      "next_day_price": 120611.71911591051,
+      "actual_movement_24h": 1.7792547427457763,
+      "market_cap": 2359569556068.08,
+      "volume_24h": 69920179085.4708,
+      "ohlcv": {
+        "timestamp": "2025-10-02T00:00:00",
+        "open": 118503.24451752483,
+        "high": 118503.24451752483,
+        "low": 118503.24451752483,
+        "close": 118503.24451752483,
+        "volume": 69920179085.4708
+      },
+      "historical_mode": true,
+      "data_source": "coingecko_historical_api"
+    },
+    "timestamp": 1764303849.785076
+  },
+  "bitcoin_2025-10-03": {
+    "data": {
+      "date": "2025-10-03",
+      "cryptocurrency": "bitcoin",
+      "current_price": 120611.71911591051,
+      "next_day_price": 122250.15186842803,
+      "actual_movement_24h": 1.3584357842897072,
+      "market_cap": 2399524207991.5527,
+      "volume_24h": 71252850672.75252,
+      "ohlcv": {
+        "timestamp": "2025-10-03T00:00:00",
+        "open": 120611.71911591051,
+        "high": 120611.71911591051,
+        "low": 120611.71911591051,
+        "close": 120611.71911591051,
+        "volume": 71252850672.75252
+      },
+      "historical_mode": true,
+      "data_source": "coingecko_historical_api"
+    },
+    "timestamp": 1764303899.430014
+  },
+  "bitcoin_2025-10-04": {
+    "data": {
+      "date": "2025-10-04",
+      "cryptocurrency": "bitcoin",
+      "current_price": 122250.15186842803,
+      "next_day_price": 122380.93708463266,
+      "actual_movement_24h": 0.10698163904564366,
+      "market_cap": 2436956902844.7153,
+      "volume_24h": 83155430408.51796,
+      "ohlcv": {
+        "timestamp": "2025-10-04T00:00:00",
+        "open": 122250.15186842803,
+        "high": 122250.15186842803,
+        "low": 122250.15186842803,
+        "close": 122250.15186842803,
+        "volume": 83155430408.51796
+      },
+      "historical_mode": true,
+      "data_source": "coingecko_historical_api"
+    },
+    "timestamp": 1764303944.8461509
+  },
+  "bitcoin_2025-10-05": {
+    "data": {
+      "date": "2025-10-05",
+      "cryptocurrency": "bitcoin",
+      "current_price": 122380.93708463266,
+      "next_day_price": 123506.18520027678,
+      "actual_movement_24h": 0.9194635557218803,
+      "market_cap": 2438832157552.7866,
+      "volume_24h": 35161626561.80918,
+      "ohlcv": {
+        "timestamp": "2025-10-05T00:00:00",
+        "open": 122380.93708463266,
+        "high": 122380.93708463266,
+        "low": 122380.93708463266,
+        "close": 122380.93708463266,
+        "volume": 35161626561.80918
+      },
+      "historical_mode": true,
+      "data_source": "coingecko_historical_api"
+    },
+    "timestamp": 1764303996.006537
+  },
+  "bitcoin_2025-10-06": {
+    "data": {
+      "date": "2025-10-06",
+      "cryptocurrency": "bitcoin",
+      "current_price": 123506.18520027678,
+      "next_day_price": 124773.50823074432,
+      "actual_movement_24h": 1.0261211034997604,
+      "market_cap": 2461221856764.1885,
+      "volume_24h": 72011486031.26575,
+      "ohlcv": {
+        "timestamp": "2025-10-06T00:00:00",
+        "open": 123506.18520027678,
+        "high": 123506.18520027678,
+        "low": 123506.18520027678,
+        "close": 123506.18520027678,
+        "volume": 72011486031.26575
+      },
+      "historical_mode": true,
+      "data_source": "coingecko_historical_api"
+    },
+    "timestamp": 1764304006.074666
+  },
+  "bitcoin_2025-10-07": {
+    "data": {
+      "date": "2025-10-07",
+      "cryptocurrency": "bitcoin",
+      "current_price": 124773.50823074432,
+      "next_day_price": 121518.75593575071,
+      "actual_movement_24h": -2.608528317545243,
+      "market_cap": 2486073086655.2866,
+      "volume_24h": 69605991064.72382,
+      "ohlcv": {
+        "timestamp": "2025-10-07T00:00:00",
+        "open": 124773.50823074432,
+        "high": 124773.50823074432,
+        "low": 124773.50823074432,
+        "close": 124773.50823074432,
+        "volume": 69605991064.72382
+      },
+      "historical_mode": true,
+      "data_source": "coingecko_historical_api"
+    },
+    "timestamp": 1764304016.153523
+  },
+  "bitcoin_2025-10-08": {
+    "data": {
+      "date": "2025-10-08",
+      "cryptocurrency": "bitcoin",
+      "current_price": 121518.75593575071,
+      "next_day_price": null,
+      "actual_movement_24h": null,
+      "market_cap": 2421938444026.2783,
+      "volume_24h": 76087884719.80028,
+      "ohlcv": {
+        "timestamp": "2025-10-08T00:00:00",
+        "open": 121518.75593575071,
+        "high": 121518.75593575071,
+        "low": 121518.75593575071,
+        "close": 121518.75593575071,
+        "volume": 76087884719.80028
+      },
+      "historical_mode": true,
+      "data_source": "coingecko_historical_api"
+    },
+    "timestamp": 1764304024.837706
+  },
+  "bitcoin_2025-11-20": {
+    "data": {
+      "date": "2025-11-20",
+      "cryptocurrency": "bitcoin",
+      "current_price": 91363.27838693369,
+      "next_day_price": null,
+      "actual_movement_24h": null,
+      "market_cap": 1820062799702.324,
+      "volume_24h": 82897875507.45229,
+      "ohlcv": {
+        "timestamp": "2025-11-20T00:00:00",
+        "open": 91363.27838693369,
+        "high": 91363.27838693369,
+        "low": 91363.27838693369,
+        "close": 91363.27838693369,
+        "volume": 82897875507.45229
+      },
+      "historical_mode": true,
+      "data_source": "coingecko_historical_api"
+    },
+    "timestamp": 1764304102.5741482
+  },
+  "bitcoin_2025-11-21": {
+    "data": {
+      "date": "2025-11-21",
+      "cryptocurrency": "bitcoin",
+      "current_price": 86649.97257918229,
+      "next_day_price": 85051.8019295002,
+      "actual_movement_24h": -1.8443983328692313,
+      "market_cap": 1731258563683.1287,
+      "volume_24h": 99171039191.1295,
+      "ohlcv": {
+        "timestamp": "2025-11-21T00:00:00",
+        "open": 86649.97257918229,
+        "high": 86649.97257918229,
+        "low": 86649.97257918229,
+        "close": 86649.97257918229,
+        "volume": 99171039191.1295
+      },
+      "historical_mode": true,
+      "data_source": "coingecko_historical_api"
+    },
+    "timestamp": 1764304137.514839
+  },
+  "bitcoin_2025-11-22": {
+    "data": {
+      "date": "2025-11-22",
+      "cryptocurrency": "bitcoin",
+      "current_price": 85051.8019295002,
+      "next_day_price": null,
+      "actual_movement_24h": null,
+      "market_cap": 1697723941246.0479,
+      "volume_24h": 135093457122.46469,
+      "ohlcv": {
+        "timestamp": "2025-11-22T00:00:00",
+        "open": 85051.8019295002,
+        "high": 85051.8019295002,
+        "low": 85051.8019295002,
+        "close": 85051.8019295002,
+        "volume": 135093457122.46469
+      },
+      "historical_mode": true,
+      "data_source": "coingecko_historical_api"
+    },
+    "timestamp": 1764304147.809837
   }
 }

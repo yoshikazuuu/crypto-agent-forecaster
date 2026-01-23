@@ -21,7 +21,7 @@ def fourchan_biz_tool(keywords: List[str], max_threads: int = 5, max_posts_per_t
         keywords: Keywords to search for in thread titles and posts
         max_threads: Maximum number of threads to fetch (default: 5)
         max_posts_per_thread: Maximum posts per thread (default: 20)
-        historical_date: Optional date for backtesting mode (returns empty for historical dates)
+        historical_date: Date for backtesting mode in YYYY-MM-DD format. Use empty string "" for live data (default: "")
     
     Returns:
         JSON string containing filtered posts and metadata
@@ -100,7 +100,7 @@ def fourchan_biz_tool(keywords: List[str], max_threads: int = 5, max_posts_per_t
     
     # Main execution
     # Handle historical backtesting mode
-    if historical_date and historical_date.strip():
+    if historical_date and historical_date.strip() and historical_date.lower() != "none":
         from datetime import datetime
         print(f"Historical mode: 4chan has no historical data for {historical_date}")
         return json.dumps({

@@ -21,6 +21,7 @@ from ..utils import (
     save_run_results,
     sanitize_for_logging,
     create_run_directory,
+    truncate_crew_output,
 )
 from ..tools.technical_analysis_tool import (
     get_current_chart_data,
@@ -229,34 +230,83 @@ class CryptoForecastingCrew:
                 if self.verbose:
                     # In verbose mode, show everything to user and capture to logs
                     self.console.print(
-                        "Verbose mode: Showing real-time crew execution..."
+                        "Verbose mode: Showing real-time crew execution (truncated prompts/results)..."
                     )
 
-                    # Capture crew output to logs while still showing to user
+                    # Capture crew output to logs while showing truncated version to user
                     original_stdout = sys.stdout
                     captured_output = io.StringIO()
 
-                    class TeeOutput:
-                        def __init__(self, file1, file2):
-                            self.file1 = file1
-                            self.file2 = file2
+                    class TruncatedTeeOutput:
+                        """Tee output that truncates long prompt/result sections for terminal display."""
+                        def __init__(self, terminal, capture_buffer, max_section_length=500):
+                            self.terminal = terminal
+                            self.capture_buffer = capture_buffer
+                            self.max_section_length = max_section_length
+                            self.line_buffer = ""
+                            self.in_long_section = False
+                            self.section_char_count = 0
+                            self.truncation_shown = False
 
                         def write(self, data):
-                            self.file1.write(data)
-                            self.file2.write(data)
+                            # Always capture full data for logs
+                            self.capture_buffer.write(data)
+                            
+                            # Process for truncated terminal display
+                            self.line_buffer += data
+                            
+                            # Process complete lines
+                            while '\n' in self.line_buffer:
+                                line, self.line_buffer = self.line_buffer.split('\n', 1)
+                                self._process_line(line + '\n')
+                        
+                        def _process_line(self, line):
+                            # Detect section markers that indicate long content
+                            section_starters = ['Prompt:', 'prompt:', 'Result:', 'result:', 'Output:', 'output:']
+                            section_enders = ['Task:', 'Agent:', '===', '---', 'Starting', 'Completed', 'Executing', 'Tool:', 'Using tool']
+                            
+                            # Check if entering a new long section
+                            if any(marker in line for marker in section_starters):
+                                self.in_long_section = True
+                                self.section_char_count = 0
+                                self.truncation_shown = False
+                                self.terminal.write(line)
+                                return
+                            
+                            # Check if exiting long section
+                            if any(marker in line for marker in section_enders):
+                                if self.in_long_section and self.truncation_shown:
+                                    self.terminal.write("]\n")  # Close truncation indicator
+                                self.in_long_section = False
+                                self.section_char_count = 0
+                                self.truncation_shown = False
+                                self.terminal.write(line)
+                                return
+                            
+                            # Handle content within long sections
+                            if self.in_long_section:
+                                self.section_char_count += len(line)
+                                if self.section_char_count <= self.max_section_length:
+                                    self.terminal.write(line)
+                                elif not self.truncation_shown:
+                                    self.terminal.write(f"... [truncated at {self.max_section_length} chars")
+                                    self.truncation_shown = True
+                                # Skip writing if already truncated
+                            else:
+                                self.terminal.write(line)
 
                         def flush(self):
-                            self.file1.flush()
-                            self.file2.flush()
+                            self.terminal.flush()
+                            self.capture_buffer.flush()
 
                     try:
-                        # Tee output to both console and capture buffer
-                        tee = TeeOutput(original_stdout, captured_output)
+                        # Tee output with truncation for terminal
+                        tee = TruncatedTeeOutput(original_stdout, captured_output, max_section_length=500)
                         sys.stdout = tee
                         result = crew.kickoff()
                         sys.stdout = original_stdout
 
-                        # Log all crew output for permanent record
+                        # Log all crew output for permanent record (full, untruncated)
                         crew_output = captured_output.getvalue()
                         if crew_output:
                             sanitized_output = sanitize_for_logging(
