@@ -55,6 +55,10 @@ class CommandHandler:
         if not self.validator.validate_provider(provider):
             return False
         
+        # If no provider/model specified and defaults are empty, prompt for selection
+        if not provider and not model and (not Config.DEFAULT_LLM_PROVIDER or not Config.DEFAULT_LLM_MODEL):
+            provider, model = self.validator.prompt_model_selection()
+        
         # Update configuration if provider/model specified
         if provider:
             Config.DEFAULT_LLM_PROVIDER = provider
@@ -286,6 +290,12 @@ class CommandHandler:
         """
         self.output.display_banner()
         self.output.print(f"\n🧪 Starting backtest experiment for {crypto.upper()}")
+        
+        # Prompt for model selection if defaults are empty
+        if not Config.DEFAULT_LLM_PROVIDER or not Config.DEFAULT_LLM_MODEL:
+            provider, model = self.validator.prompt_model_selection()
+            Config.DEFAULT_LLM_PROVIDER = provider
+            Config.DEFAULT_LLM_MODEL = model
         
         try:
             # Import backtesting modules

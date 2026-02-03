@@ -4,7 +4,7 @@ Validation utilities for the CLI application.
 
 import logging
 from typing import Optional, Dict, Any, List, Tuple
-from rich.prompt import Confirm
+from rich.prompt import Confirm, Prompt
 
 from .constants import ERROR_MESSAGES, SUCCESS_MESSAGES
 from .output import OutputManager
@@ -159,6 +159,47 @@ class Validator:
         except KeyboardInterrupt:
             self.output.print("\nOperation cancelled by user.")
             return False
+    
+    def prompt_model_selection(self) -> Tuple[str, str]:
+        """
+        Prompt user to select a model from the default choices.
+        
+        Returns:
+            Tuple of (provider, model) selected by user
+        """
+        choices = LLMFactory.DEFAULT_MODEL_CHOICES
+        
+        self.output.print("\nSelect a model to use:", style="bold")
+        self.output.print("")
+        
+        for i, choice in enumerate(choices, 1):
+            provider = choice["provider"]
+            model = choice["model"]
+            description = choice["description"]
+            self.output.print(f"  [{i}] {model} ({provider}) - {description}")
+        
+        self.output.print("")
+        
+        try:
+            selection = Prompt.ask(
+                "Enter choice",
+                choices=[str(i) for i in range(1, len(choices) + 1)],
+                default="1"
+            )
+            
+            selected_choice = choices[int(selection) - 1]
+            provider = selected_choice["provider"]
+            model = selected_choice["model"]
+            
+            self.output.print(f"\nSelected: {model} ({provider})", style="bold green")
+            logger.info(f"User selected model: {provider}/{model}")
+            
+            return provider, model
+            
+        except KeyboardInterrupt:
+            self.output.print("\nOperation cancelled by user.")
+            # Default to first choice
+            return choices[0]["provider"], choices[0]["model"]
     
     def validate_debug_environment(self) -> Dict[str, Any]:
         """

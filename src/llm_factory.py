@@ -20,6 +20,7 @@ class LLMFactory:
             "gpt-4o": {"max_tokens": 128000, "cost_per_1k_tokens": {"input": 0.005, "output": 0.015}},
             "gpt-4o-mini": {"max_tokens": 128000, "cost_per_1k_tokens": {"input": 0.00015, "output": 0.0006}},
             "gpt-4": {"max_tokens": 8192, "cost_per_1k_tokens": {"input": 0.03, "output": 0.06}},
+            "gpt-5-nano": {"max_tokens": 128000, "cost_per_1k_tokens": {"input": 0.0001, "output": 0.0004}},
         },
         "anthropic": {
             "claude-3-5-sonnet-20241022": {"max_tokens": 200000, "cost_per_1k_tokens": {"input": 0.003, "output": 0.015}},
@@ -29,8 +30,15 @@ class LLMFactory:
             "gemini-1.5-pro": {"max_tokens": 1000000, "cost_per_1k_tokens": {"input": 0.0035, "output": 0.0105}},
             "gemini-1.5-flash": {"max_tokens": 1000000, "cost_per_1k_tokens": {"input": 0.000075, "output": 0.0003}},
             "gemini-2.0-flash-lite": {"max_tokens": 1000000, "cost_per_1k_tokens": {"input": 0.000075, "output": 0.0003}},
+            "gemini-2.5-flash": {"max_tokens": 1000000, "cost_per_1k_tokens": {"input": 0.00005, "output": 0.0002}},
         }
     }
+    
+    # Default model choices for interactive selection
+    DEFAULT_MODEL_CHOICES = [
+        {"provider": "google", "model": "gemini-2.5-flash", "description": "Fast and cost-effective (Recommended)"},
+        {"provider": "openai", "model": "gpt-5-nano", "description": "Lightweight and efficient"},
+    ]
     
     @staticmethod
     def create_llm(
@@ -53,11 +61,22 @@ class LLMFactory:
         Returns:
             CrewAI LLM instance
         """
-        provider = provider or Config.DEFAULT_LLM_PROVIDER
-        model = model or Config.DEFAULT_LLM_MODEL
+        provider = provider or Config.DEFAULT_LLM_PROVIDER or "google"
+        model = model or Config.DEFAULT_LLM_MODEL or "gemini-2.5-flash"
         
         # Enhanced validation and debugging
         logger.info(f"Creating LLM: {provider}/{model} with temp={temperature}")
+
+        # For OpenAI models, do not pass token limits or stop sequences
+        if provider == "openai":
+            max_tokens = None
+            kwargs.pop("max_tokens", None)
+            kwargs.pop("max_completion_tokens", None)
+            existing_drop = kwargs.get("drop_params", [])
+            for param in ["max_tokens", "max_completion_tokens", "stop"]:
+                if param not in existing_drop:
+                    existing_drop.append(param)
+            kwargs["drop_params"] = existing_drop
         
         # Validate provider and model
         if not LLMFactory._validate_model(provider, model):
@@ -99,12 +118,20 @@ class LLMFactory:
         params = {
             "model": f"openai/{model}",
             "api_key": Config.OPENAI_API_KEY,
-            "temperature": temperature,
         }
         
-        if max_tokens:
-            params["max_tokens"] = max_tokens
-            
+        # For OpenAI models, do not pass token limits, stop sequences, or temperature
+        drop_params = kwargs.pop("drop_params", [])
+        for param in ["max_tokens", "max_completion_tokens", "stop", "stop_sequences", "temperature"]:
+            if param not in drop_params:
+                drop_params.append(param)
+        params["drop_params"] = drop_params
+        params["additional_drop_params"] = drop_params
+        kwargs.pop("max_tokens", None)
+        kwargs.pop("max_completion_tokens", None)
+        kwargs.pop("stop", None)
+        kwargs.pop("stop_sequences", None)
+        kwargs.pop("temperature", None)
         # Add additional parameters
         if kwargs.get("top_p"):
             params["top_p"] = kwargs["top_p"]

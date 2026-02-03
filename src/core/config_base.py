@@ -26,8 +26,9 @@ class BaseConfig:
     COINGECKO_API_KEY: Optional[str] = os.getenv("COINGECKO_API_KEY")
     
     # Default LLM Configuration
-    DEFAULT_LLM_PROVIDER: str = os.getenv("DEFAULT_LLM_PROVIDER", "openai")
-    DEFAULT_LLM_MODEL: str = os.getenv("DEFAULT_LLM_MODEL", "gpt-4o")
+    # Default to None to trigger interactive model selection
+    DEFAULT_LLM_PROVIDER: str = os.getenv("DEFAULT_LLM_PROVIDER", "")
+    DEFAULT_LLM_MODEL: str = os.getenv("DEFAULT_LLM_MODEL", "")
     
     # Rate Limiting
     API_RATE_LIMIT_DELAY: float = float(os.getenv("API_RATE_LIMIT_DELAY", "1.0"))

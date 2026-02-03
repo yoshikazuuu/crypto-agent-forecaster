@@ -44,7 +44,7 @@ class OutputManager:
         provider_table.add_row(
             "OpenAI", 
             "✅ Configured" if Config.OPENAI_API_KEY else "❌ Not configured",
-            "gpt-4o-mini / gpt-4o"
+            "gpt-5-nano / gpt-4o-mini / gpt-4o"
         )
         provider_table.add_row(
             "Anthropic", 
@@ -54,7 +54,7 @@ class OutputManager:
         provider_table.add_row(
             "Google", 
             "✅ Configured" if Config.GOOGLE_API_KEY else "❌ Not configured",
-            "gemini-1.5-pro"
+            "gemini-2.5-flash / gemini-1.5-pro"
         )
         
         self.console.print(provider_table)

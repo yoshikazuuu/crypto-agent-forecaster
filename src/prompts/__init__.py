@@ -34,6 +34,16 @@ def get_task_prompts():
         - Check volume consistency
         - Confirm timestamp accuracy
 
+        **Tool Usage Requirements (IMPORTANT):**
+        - When calling the CoinGecko tool, pass a single JSON object (not a list).
+        - Use this exact format:
+          {{"query": "{crypto_name} ohlcv 30 days", "historical_date": ""}}
+        - Do NOT include the word "horizon" in the query.
+        - Do NOT include any other JSON blocks, arrays, or example data.
+        - The Action Input must be exactly one JSON object and nothing else.
+        - You MUST call the tool before writing the market summary.
+        - If the tool call fails, retry with the exact JSON object above.
+
         **Output Format:**
         Provide a concise market data summary including:
         - Current market status

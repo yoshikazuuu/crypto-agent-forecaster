@@ -15,14 +15,14 @@ from ..utils import APIRateLimiter, APICache
 
 
 @tool("coingecko_tool")
-def coingecko_tool(query: str, historical_date: Optional[str] = None) -> str:
+def coingecko_tool(query: str, historical_date: str = "") -> str:
     """
     Fetches cryptocurrency market data from CoinGecko API.
     
     Args:
         query: Query for cryptocurrency data (e.g., 'bitcoin current price', 'ethereum ohlcv 30 days')
                Can include horizon information for optimal data fetching (e.g., 'bitcoin ohlcv 24 hours horizon')
-        historical_date: Optional date in YYYY-MM-DD format for historical backtesting mode
+        historical_date: Optional date in YYYY-MM-DD format for historical backtesting mode. Leave empty for current data.
     
     Returns:
         JSON string containing the requested cryptocurrency data

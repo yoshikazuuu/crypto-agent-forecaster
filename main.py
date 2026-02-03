@@ -159,7 +159,7 @@ def forecast(
     model: Optional[str] = typer.Option(
         None, 
         "--model", "-m", 
-        help="Specific model to use. Examples: 'gpt-4o', 'claude-3-5-sonnet-20241022', 'gemini-1.5-pro'",
+        help="Specific model to use. Examples: 'gemini-2.5-flash', 'gpt-5-nano', 'gpt-4o', 'claude-3-5-sonnet-20241022'",
         metavar="MODEL_NAME"
     ),
     verbose: bool = typer.Option(
