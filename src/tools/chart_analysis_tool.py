@@ -45,20 +45,20 @@ def chart_analysis_tool(analysis_context: str = "") -> str:
     chart_data = get_current_chart_data()
     
     if not chart_path or not os.path.exists(chart_path):
-        return f"❌ No chart data available for {crypto_name}. Please run technical analysis first to generate a chart."
+        return f"No chart data available for {crypto_name}. Please run technical analysis first to generate a chart."
     
     try:
         # First try multimodal analysis, then fall back to text-only if needed
         try:
             return _analyze_chart_multimodal(crypto_name, chart_path, chart_data, analysis_context)
         except Exception as multimodal_error:
-            print(f"⚠️ Multimodal analysis failed: {multimodal_error}")
-            print("🔄 Falling back to text-based analysis...")
+            print(f"Multimodal analysis failed: {multimodal_error}")
+            print("Falling back to text-based analysis...")
             return _analyze_chart_text_only(crypto_name, chart_path, chart_data, analysis_context)
             
     except Exception as e:
         error_msg = f"""
-❌ **Error in AI Chart Analysis for {crypto_name}**
+**Error in AI Chart Analysis for {crypto_name}**
 
 An error occurred during the chart analysis: {str(e)}
 
@@ -79,7 +79,7 @@ An error occurred during the chart analysis: {str(e)}
 3. Try running technical analysis again to regenerate the chart
 4. Consider manual chart interpretation if AI analysis continues to fail
 """
-        print(f"❌ Error in chart analysis: {e}")
+        print(f"Error in chart analysis: {e}")
         import traceback
         print(f"Traceback: {traceback.format_exc()}")
         return error_msg
@@ -179,21 +179,21 @@ def _analyze_chart_multimodal(crypto_name: str, chart_path: str, chart_data: str
 
 ---
 
-## 📈 Chart Analysis Metadata
+## Chart Analysis Metadata
 - **Chart File:** {os.path.basename(chart_path)}
 - **Analysis Method:** CrewAI Technical Analysis Agent
 - **Chart Data Available:** {len(chart_data) if chart_data else 0} bytes
 - **Analysis Context:** {analysis_context if analysis_context else "Comprehensive technical analysis"}
 
-## 🔍 Analysis Capabilities Applied
-- ✅ Technical trend analysis
-- ✅ Support/resistance identification
-- ✅ Technical indicator interpretation
-- ✅ Volume analysis
-- ✅ Trading recommendations
-- ✅ Risk management guidance
+## Analysis Capabilities Applied
+- Technical trend analysis
+- Support/resistance identification
+- Technical indicator interpretation
+- Volume analysis
+- Trading recommendations
+- Risk management guidance
 
-## 💡 Next Steps
+## Next Steps
 1. Consider the technical levels and signals identified
 2. Monitor the key price levels mentioned for entry/exit opportunities
 3. Apply proper risk management based on the recommendations
@@ -278,20 +278,20 @@ def _analyze_chart_text_only(crypto_name: str, chart_path: str, chart_data: str,
 
 ---
 
-## 📈 Chart Analysis Metadata
+## Chart Analysis Metadata
 - **Chart File:** {os.path.basename(chart_path)}
 - **Analysis Method:** Text-based Technical Analysis (Fallback Mode)
 - **Chart Data Available:** {len(chart_data) if chart_data else 0} bytes
 - **Analysis Context:** {analysis_context if analysis_context else "Comprehensive technical analysis"}
 
-## 🔍 Analysis Capabilities Applied
-- ✅ Technical analysis methodology guidance
-- ✅ Indicator interpretation principles
-- ✅ Risk management recommendations
-- ✅ Cryptocurrency-specific considerations
-- ⚠️ Direct chart visualization not available
+## Analysis Capabilities Applied
+- Technical analysis methodology guidance
+- Indicator interpretation principles
+- Risk management recommendations
+- Cryptocurrency-specific considerations
+- Direct chart visualization not available
 
-## 💡 Next Steps
+## Next Steps
 1. Apply the general principles to your specific chart
 2. Monitor the key indicators mentioned
 3. Consider the risk management guidance provided

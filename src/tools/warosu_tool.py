@@ -156,15 +156,15 @@ def warosu_archive_tool(keywords: List[str], date_from: Optional[str] = None, da
             search_params = {
                 'task': 'search2',
                 'ghost': 'false',
-                'search_text': ' '.join(keywords),  # Join keywords with space
+                'search_text': ' '.join(keywords), 
                 'search_datefrom': date_from,
                 'search_dateto': date_to,
                 'search_op': 'all',
                 'search_del': 'dontcare',
                 'search_int': 'dontcare',
-                'search_ord': 'new',  # Newest first
+                'search_ord': 'new', 
                 'search_capcode': 'all',
-                'search_res': 'post'  # Search posts, not just threads
+                'search_res': 'post' 
             }
             
             print(f"Search parameters: {search_params}")

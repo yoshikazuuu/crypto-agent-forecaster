@@ -394,81 +394,81 @@ class ThesisAnalyzer:
             logger.info("CHARTS: Generating accuracy comparison chart...")
             chart_path = self._plot_accuracy_comparison(df, crypto_symbol)
             if chart_path:
-                logger.info(f"CHARTS: ✅ Accuracy comparison saved to: {chart_path}")
+                logger.info(f"CHARTS: Accuracy comparison saved to: {chart_path}")
             else:
-                logger.error("CHARTS: ❌ Failed to generate accuracy comparison chart")
+                logger.error("CHARTS: Failed to generate accuracy comparison chart")
             chart_paths.append(chart_path)
             
             # 2. Confidence vs Accuracy Analysis
             logger.info("CHARTS: Generating confidence accuracy chart...")
             chart_path = self._plot_confidence_accuracy(df, crypto_symbol)
             if chart_path:
-                logger.info(f"CHARTS: ✅ Confidence accuracy saved to: {chart_path}")
+                logger.info(f"CHARTS: Confidence accuracy saved to: {chart_path}")
             else:
-                logger.error("CHARTS: ❌ Failed to generate confidence accuracy chart")
+                logger.error("CHARTS: Failed to generate confidence accuracy chart")
             chart_paths.append(chart_path)
             
             # 3. Temporal Performance Analysis
             logger.info("CHARTS: Generating temporal analysis chart...")
             chart_path = self._plot_temporal_analysis(df, crypto_symbol)
             if chart_path:
-                logger.info(f"CHARTS: ✅ Temporal analysis saved to: {chart_path}")
+                logger.info(f"CHARTS: Temporal analysis saved to: {chart_path}")
             else:
-                logger.error("CHARTS: ❌ Failed to generate temporal analysis chart")
+                logger.error("CHARTS: Failed to generate temporal analysis chart")
             chart_paths.append(chart_path)
             
             # 4. Confusion Matrix Heatmaps
             logger.info("CHARTS: Generating confusion matrices chart...")
             chart_path = self._plot_confusion_matrices(df, crypto_symbol)
             if chart_path:
-                logger.info(f"CHARTS: ✅ Confusion matrices saved to: {chart_path}")
+                logger.info(f"CHARTS: Confusion matrices saved to: {chart_path}")
             else:
-                logger.error("CHARTS: ❌ Failed to generate confusion matrices chart")
+                logger.error("CHARTS: Failed to generate confusion matrices chart")
             chart_paths.append(chart_path)
             
             # 5. Method Performance Distribution
             logger.info("CHARTS: Generating performance distribution chart...")
             chart_path = self._plot_performance_distribution(df, crypto_symbol)
             if chart_path:
-                logger.info(f"CHARTS: ✅ Performance distribution saved to: {chart_path}")
+                logger.info(f"CHARTS: Performance distribution saved to: {chart_path}")
             else:
-                logger.error("CHARTS: ❌ Failed to generate performance distribution chart")
+                logger.error("CHARTS: Failed to generate performance distribution chart")
             chart_paths.append(chart_path)
             
             # 6. Trading Performance Analysis (NEW)
             logger.info("CHARTS: Generating trading performance chart...")
             chart_path = self._plot_trading_performance(results, crypto_symbol)
             if chart_path:
-                logger.info(f"CHARTS: ✅ Trading performance saved to: {chart_path}")
+                logger.info(f"CHARTS: Trading performance saved to: {chart_path}")
             else:
-                logger.error("CHARTS: ❌ Failed to generate trading performance chart")
+                logger.error("CHARTS: Failed to generate trading performance chart")
             chart_paths.append(chart_path)
             
             # 7. Portfolio Performance Over Time (NEW)
             logger.info("CHARTS: Generating portfolio performance chart...")
             chart_path = self._plot_portfolio_performance(results, crypto_symbol)
             if chart_path:
-                logger.info(f"CHARTS: ✅ Portfolio performance saved to: {chart_path}")
+                logger.info(f"CHARTS: Portfolio performance saved to: {chart_path}")
             else:
-                logger.error("CHARTS: ❌ Failed to generate portfolio performance chart")
+                logger.error("CHARTS: Failed to generate portfolio performance chart")
             chart_paths.append(chart_path)
             
             # 8. Risk-Return Analysis (NEW)
             logger.info("CHARTS: Generating risk-return analysis chart...")
             chart_path = self._plot_risk_return_analysis(results, crypto_symbol)
             if chart_path:
-                logger.info(f"CHARTS: ✅ Risk-return analysis saved to: {chart_path}")
+                logger.info(f"CHARTS: Risk-return analysis saved to: {chart_path}")
             else:
-                logger.error("CHARTS: ❌ Failed to generate risk-return analysis chart")
+                logger.error("CHARTS: Failed to generate risk-return analysis chart")
             chart_paths.append(chart_path)
             
             # 9. Stop Loss / Take Profit Analysis (NEW)
             logger.info("CHARTS: Generating stop loss/take profit chart...")
             chart_path = self._plot_stop_loss_take_profit_analysis(results, crypto_symbol)
             if chart_path:
-                logger.info(f"CHARTS: ✅ Stop loss/take profit saved to: {chart_path}")
+                logger.info(f"CHARTS: Stop loss/take profit saved to: {chart_path}")
             else:
-                logger.error("CHARTS: ❌ Failed to generate stop loss/take profit chart")
+                logger.error("CHARTS: Failed to generate stop loss/take profit chart")
             chart_paths.append(chart_path)
             
             valid_charts = [path for path in chart_paths if path]
@@ -1454,7 +1454,7 @@ class ThesisAnalyzer:
             logger.info("REPORT: Writing markdown file...")
             with open(report_path, 'w') as f:
                 f.write(markdown_content)
-            logger.info(f"REPORT: ✅ Markdown report saved to: {report_path}")
+            logger.info(f"REPORT: Markdown report saved to: {report_path}")
             
             # Also save as JSON
             json_path = self.analysis_dir / f"{crypto_symbol}_thesis_analysis.json"
@@ -1466,18 +1466,18 @@ class ThesisAnalyzer:
             
             with open(json_path, 'w') as f:
                 json.dump(cleaned_analysis, f, indent=2, default=str)
-            logger.info(f"REPORT: ✅ JSON analysis saved to: {json_path}")
+            logger.info(f"REPORT: JSON analysis saved to: {json_path}")
             
             # Verify files were created
             if report_path.exists():
-                logger.info(f"REPORT: ✅ Markdown file verified: {report_path.stat().st_size} bytes")
+                logger.info(f"REPORT: Markdown file verified: {report_path.stat().st_size} bytes")
             else:
-                logger.error(f"REPORT: ❌ Markdown file not found after creation: {report_path}")
+                logger.error(f"REPORT: Markdown file not found after creation: {report_path}")
                 
             if json_path.exists():
-                logger.info(f"REPORT: ✅ JSON file verified: {json_path.stat().st_size} bytes")
+                logger.info(f"REPORT: JSON file verified: {json_path.stat().st_size} bytes")
             else:
-                logger.error(f"REPORT: ❌ JSON file not found after creation: {json_path}")
+                logger.error(f"REPORT: JSON file not found after creation: {json_path}")
             
             logger.info("=== ANALYZER: Thesis report generation completed ===")
             return report_path

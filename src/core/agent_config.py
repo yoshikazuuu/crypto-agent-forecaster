@@ -14,25 +14,25 @@ class AgentConfig:
     # LLM-specific configurations for different agents
     LLM_AGENT_CONFIGS: Dict[str, Dict[str, Any]] = {
         "market_data": {
-            "temperature": 0.0,  # Very deterministic for data processing
+            "temperature": 0.0, 
             "max_tokens": 2000,
             "preferred_provider": "openai",
             "preferred_model": "gpt-4o-mini"
         },
         "sentiment": {
-            "temperature": 0.05,  # Very low creativity for consistent sentiment analysis
+            "temperature": 0.05, 
             "max_tokens": 3000,
-            "preferred_provider": "openai",  # Temporarily using OpenAI instead of Anthropic
+            "preferred_provider": "openai", 
             "preferred_model": "gpt-4o"
         },
         "technical": {
-            "temperature": 0.0,  # Maximum precision for technical analysis
+            "temperature": 0.0, 
             "max_tokens": 2500,
             "preferred_provider": "openai",
             "preferred_model": "gpt-4o"
         },
         "forecasting": {
-            "temperature": 0.05,  # Much lower for consistent forecasts
+            "temperature": 0.05, 
             "max_tokens": 4000,
             "preferred_provider": "google",
             "preferred_model": "gemini-1.5-pro"

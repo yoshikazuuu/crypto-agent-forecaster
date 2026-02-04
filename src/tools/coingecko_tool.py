@@ -265,7 +265,6 @@ def coingecko_tool(query: str, historical_date: str = "") -> str:
                 resolution = "daily"
             
             # Group data by the determined period
-            # IMPROVED: Better handling of single data points per period
             grouped = merged_df.groupby('period').agg({
                 'price': ['first', 'max', 'min', 'last', 'std', 'count'],
                 'volume': 'sum',
@@ -275,10 +274,6 @@ def coingecko_tool(query: str, historical_date: str = "") -> str:
             # Flatten column names
             grouped.columns = ['open', 'high', 'low', 'close', 'price_std', 'price_count', 'volume', 'timestamp']
             grouped = grouped.reset_index()
-            
-            # ABORT: Do not create artificial OHLC spreads - this creates misleading data
-            # If periods have flat OHLC or insufficient volatility, use the actual data as-is
-            # Technical analysis should work with real market data, not artificially enhanced data
             
             single_point_mask = grouped['price_count'] == 1
             if single_point_mask.sum() > 0:
@@ -517,7 +512,6 @@ def coingecko_tool(query: str, historical_date: str = "") -> str:
                 }
             elif "ohlcv" in query.lower() or "historical" in query.lower():
                 # For backtesting: get OHLCV data from BEFORE the prediction date
-                # If predicting 2024-12-01, get data from 7 days before: 2024-11-24 to 2024-11-30
                 from datetime import datetime, timedelta
                 
                 prediction_date = datetime.strptime(historical_date, '%Y-%m-%d')
